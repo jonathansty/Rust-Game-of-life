@@ -5,6 +5,7 @@ mod glw;
 
 use gl::types::*;
 use glfw::{Context, WindowHint};
+use glw::shader;
 
 // Runs the main application
 pub fn run() {
@@ -31,21 +32,23 @@ pub fn run() {
 
     
     let (program, vao, ibo) = unsafe {
-        let v_shader : glw::Shader = glw::Shader::load_from_file(String::from("Shaders/shader.vert"),gl::VERTEX_SHADER).unwrap();
-        let f_shader : glw::Shader = glw::Shader::load_from_file(String::from("Shaders/shader.frag"),gl::FRAGMENT_SHADER).unwrap();
+        let mut v_shader = shader::Shader::new(gl::VERTEX_SHADER);
+        let mut f_shader = shader::Shader::new(gl::FRAGMENT_SHADER);
+        v_shader.load_from_file(String::from("Shaders/shader.vert")).unwrap();
+        f_shader.load_from_file(String::from("Shaders/shader.frag")).unwrap();
 
         //  Create the program
-        let program = gl::CreateProgram();
-        gl::AttachShader(program, v_shader.id);
-        gl::AttachShader(program, f_shader.id);
-        gl::LinkProgram(program);
+        let mut program = shader::Program::new();
+        program.attach_shader(&v_shader);
+        program.attach_shader(&f_shader);
+        program.link();
 
         // Create the vertex array object
-        let vertices: [f32; 12] = [
-            -1.0, -1.0, 0.0, 
-             1.0, -1.0, 0.0, 
-             1.0, 1.0, 0.0,
-             -1.0, 1.0, 0.0 ];
+        let vertices: [f32; 32] = [
+            -1.0, -1.0, 0.0, 0.0,0.0, 1.0,0.0,0.0,
+             1.0, -1.0, 0.0, 1.0,0.0, 0.0,1.0,0.0,
+             1.0, 1.0, 0.0,  1.0,1.0, 0.0,0.0,1.0,
+             -1.0, 1.0, 0.0, 0.0,1.0, 1.0,0.0,1.0 ];
 
         let indices : [i32; 6] = [
             0, 1, 2,
@@ -67,6 +70,41 @@ pub fn run() {
             gl::STATIC_DRAW,
         );
 
+
+        let stride = 8 * std::mem::size_of::<GLfloat>() as GLsizei;
+        gl::EnableVertexAttribArray(0);
+        gl::EnableVertexAttribArray(1);
+        gl::EnableVertexAttribArray(2);
+
+        gl::VertexAttribPointer(
+            0,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            stride,
+            std::ptr::null(),
+        );
+
+
+        gl::VertexAttribPointer(
+            1,
+            2,
+            gl::FLOAT,
+            gl::FALSE,
+            stride,
+            (3 * std::mem::size_of::<GLfloat>()) as *const std::os::raw::c_void
+        );
+
+        gl::VertexAttribPointer(
+            2,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            stride,
+            (5 * std::mem::size_of::<GLfloat>()) as *const std::os::raw::c_void
+        );
+
+
         let mut ibo = 0;
         gl::GenBuffers(1, &mut ibo);
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
@@ -77,16 +115,6 @@ pub fn run() {
             gl::STATIC_DRAW,
         );
 
-        gl::VertexAttribPointer(
-            0,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            3 * std::mem::size_of::<GLfloat>() as GLsizei,
-            std::ptr::null(),
-        );
-
-        gl::EnableVertexAttribArray(0);
         // unbind
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,0);
@@ -106,9 +134,11 @@ pub fn run() {
             gl::ClearColor(0.3, 0.3, 0.5, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
-            gl::UseProgram(program);
+            program.bind();
+
             gl::BindVertexArray(vao);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
+
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const i32 as *const std::os::raw::c_void );
             // gl::DrawArrays(gl::TRIANGLES,0,6);
         }
