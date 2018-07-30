@@ -84,6 +84,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpu_accelerated_fluid"
+version = "0.1.0"
+dependencies = [
+ "gl 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glfw 0.23.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "khronos_api"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -196,14 +204,6 @@ dependencies = [
  "fuchsia-zircon 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rust_opengl"
-version = "0.1.0"
-dependencies = [
- "gl 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "glfw 0.23.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

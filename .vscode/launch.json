@@ -8,7 +8,7 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/rust_opengl.exe",
+            "program": "${workspaceFolder}/target/debug/gpu_accelerated_fluid.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
