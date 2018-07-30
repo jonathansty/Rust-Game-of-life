@@ -68,12 +68,12 @@ pub fn run() {
         let vertices: [f32; 12] = [
             -1.0, -1.0, 0.0, 
              1.0, -1.0, 0.0, 
-            -1.0, -1.0, 0.0,
-             1.0, 1.0, 0.0 ];
+             1.0, 1.0, 0.0,
+             -1.0, 1.0, 0.0 ];
 
         let indices : [i32; 6] = [
             0, 1, 2,
-            0, 2, 1
+            0, 2, 3
         ];
 
         let (mut vbo, mut vao) = (0, 0);
@@ -96,8 +96,8 @@ pub fn run() {
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
         gl::BufferData(
             gl::ELEMENT_ARRAY_BUFFER,
-            (indices.len() * std::mem::size_of::<i32>()) as GLsizeiptr,
-            &indices[0] as  *const i32 as *const std::os::raw::c_void,
+            (indices.len() * std::mem::size_of::<GLint>()) as GLsizeiptr,
+            &indices[0] as  *const GLint as *const std::os::raw::c_void,
             gl::STATIC_DRAW,
         );
 
