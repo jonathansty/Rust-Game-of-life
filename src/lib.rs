@@ -123,8 +123,16 @@ pub fn run() {
         (program, vao,ibo)
     };
 
+    let mut prev_time = glfw.get_time();
+    let mut time = glfw.get_time();
     while !window.should_close() {
+
+        prev_time = time;
+        time = glfw.get_time();
+
+        let dt = time - prev_time;
         glfw.poll_events();
+
 
         for (_, event) in glfw::flush_messages(&events) {
             handle_events(&mut window, event);
@@ -134,8 +142,9 @@ pub fn run() {
             gl::ClearColor(0.3, 0.3, 0.5, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
-            program.bind();
 
+            program.bind();
+            program.set_uniform(String::from("u_time"), shader::Uniform::Float(glfw.get_time() as f32) );
             gl::BindVertexArray(vao);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
 

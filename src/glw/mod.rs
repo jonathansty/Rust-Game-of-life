@@ -75,16 +75,23 @@ pub mod shader {
         id : GLuint
     }
 
-impl Drop for Program
-{
-    fn drop(&mut self)
+    pub enum Uniform
     {
-        unsafe{
-            gl::DeleteProgram(self.id);
-        }
-
+        Float(f32),
+        Int(i32)
     }
-}
+
+    impl Drop for Program
+    {
+        fn drop(&mut self)
+        {
+            unsafe{
+                gl::DeleteProgram(self.id);
+            }
+
+        }
+    }
+
     impl Program
     {
         pub fn new() -> Program{
@@ -110,6 +117,22 @@ impl Drop for Program
         pub fn bind(&self){
             unsafe{
                 gl::UseProgram(self.id);
+            }
+        }
+
+        pub fn set_uniform(&self, uniform_name : String, uni : Uniform){
+            unsafe {
+                let loc : GLint = gl::GetUniformLocation(self.id, uniform_name.as_ptr() as *const i8);
+                match loc {
+                    -1 => {},
+                    _ => {
+                        match uni {
+                            Uniform::Float(v) => gl::Uniform1f(loc, v),
+                            Uniform::Int(v) => gl::Uniform1i(loc, v)
+                        }
+                    }
+                } 
+
             }
         }
     }

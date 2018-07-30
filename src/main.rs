@@ -6,6 +6,7 @@ extern crate gpu_accelerated_fluid;
 
 use std::io;
 use std::io::prelude::*;
+#[allow(dead_code)]
 fn pause(){
     write!(io::stdout(),"Press any key to continue...").unwrap();
     io::stdout().flush().expect("Failed to flush.");
