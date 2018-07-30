@@ -1,26 +1,12 @@
 extern crate gl;
 extern crate glfw;
 
+mod glw;
+
 use gl::types::*;
 use glfw::{Context, WindowHint};
-use std::ffi::CString;
 
-const VERTEX_SHADER_SOURCE: &str = r#"
-    #version 330 core
-    layout (location = 0) in vec3 aPos;
-    void main() {
-       gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-    }
-"#;
-
-const FRAGMENT_SHADER_SOURCE: &str = r#"
-    #version 330 core
-    out vec4 FragColor;
-    void main() {
-       FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
-    }
-"#;
-
+// Runs the main application
 pub fn run() {
     println!("Starting up application.");
 
@@ -43,26 +29,16 @@ pub fn run() {
     window.set_framebuffer_size_polling(true);
     window.show();
 
-    let (program, vao,ibo) = unsafe {
-        let v_shader = gl::CreateShader(gl::VERTEX_SHADER);
-        let f_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
-
-        let c_str_vert = CString::new(VERTEX_SHADER_SOURCE.as_bytes()).unwrap();
-        gl::ShaderSource(v_shader, 1, &c_str_vert.as_ptr(), std::ptr::null());
-        gl::CompileShader(v_shader);
-
-        let c_str_vert = CString::new(FRAGMENT_SHADER_SOURCE.as_bytes()).unwrap();
-        gl::ShaderSource(f_shader, 1, &c_str_vert.as_ptr(), std::ptr::null());
-        gl::CompileShader(f_shader);
+    
+    let (program, vao, ibo) = unsafe {
+        let v_shader : glw::Shader = glw::Shader::load_from_file(String::from("Shaders/shader.vert"),gl::VERTEX_SHADER).unwrap();
+        let f_shader : glw::Shader = glw::Shader::load_from_file(String::from("Shaders/shader.frag"),gl::FRAGMENT_SHADER).unwrap();
 
         //  Create the program
         let program = gl::CreateProgram();
-        gl::AttachShader(program, v_shader);
-        gl::AttachShader(program, f_shader);
+        gl::AttachShader(program, v_shader.id);
+        gl::AttachShader(program, f_shader.id);
         gl::LinkProgram(program);
-
-        gl::DeleteShader(v_shader);
-        gl::DeleteShader(f_shader);
 
         // Create the vertex array object
         let vertices: [f32; 12] = [
@@ -109,14 +85,12 @@ pub fn run() {
             3 * std::mem::size_of::<GLfloat>() as GLsizei,
             std::ptr::null(),
         );
+
         gl::EnableVertexAttribArray(0);
         // unbind
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,0);
         gl::BindVertexArray(0);
-
-
-
 
         (program, vao,ibo)
     };
