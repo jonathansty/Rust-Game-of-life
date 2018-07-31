@@ -8,6 +8,45 @@ use glfw::{Context, WindowHint};
 use glw::shader;
 
 // Runs the main application
+fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut const std::os::raw::c_void)
+{
+
+}
+
+fn create_framebuffer(width : i32, height: i32) -> Result<(GLuint, GLuint),String>
+{
+    unsafe {
+        let mut framebuffer = 0;
+        let mut tex : GLuint = 0;
+
+        gl::GenFramebuffers(1, &mut framebuffer);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
+        
+        gl::GenTextures(1,&mut tex);
+        gl::BindTexture(gl::TEXTURE_2D, tex);
+        gl::TexParameteri(gl::TEXTURE_2D,gl::TEXTURE_MAG_FILTER,gl::NEAREST as i32);
+        gl::TexParameteri(gl::TEXTURE_2D,gl::TEXTURE_MIN_FILTER,gl::NEAREST as i32);
+
+
+        gl::TexImage2D(gl::TEXTURE_2D,0,gl::RGB as i32, width, height, 0, gl::RGB, gl::UNSIGNED_BYTE, std::ptr::null());
+
+        gl::FramebufferTexture(gl::FRAMEBUFFER,gl::COLOR_ATTACHMENT0, tex,0);
+
+        match gl::CheckFramebufferStatus(gl::FRAMEBUFFER) {
+           gl::FRAMEBUFFER_COMPLETE => {
+                gl::BindFramebuffer(gl::FRAMEBUFFER,0);
+
+                Ok((framebuffer,tex))
+           } ,
+           _ => {
+               gl::BindFramebuffer(gl::FRAMEBUFFER,0);
+               Err(String::from("Failed to create frame buffer!"))
+           }
+        }
+
+    }
+}
+
 pub fn run() {
     println!("Starting up application.");
 
@@ -30,12 +69,16 @@ pub fn run() {
     window.set_framebuffer_size_polling(true);
     window.show();
 
+unsafe{
+    gl::Enable(gl::DEBUG_OUTPUT);
+    // gl::DebugMessageCallback(gl_debug_message, std::ptr::null());
+}
     
-    let composition = {
+    let composition_program = {
         let mut v_shader = shader::Shader::new(gl::VERTEX_SHADER);
         let mut f_shader = shader::Shader::new(gl::FRAGMENT_SHADER);
-        v_shader.load_from_file(String::from("Shaders/passthrough.vert")).unwrap();
-        f_shader.load_from_file(String::from("Shaders/composition.frag")).unwrap();
+        v_shader.load_from_file("Shaders/passthrough.vert").unwrap();
+        f_shader.load_from_file("Shaders/composition.frag").unwrap();
 
         let mut program = shader::Program::new();
         program.attach_shader(&v_shader);
@@ -48,8 +91,8 @@ pub fn run() {
     let (program, vao, ibo) = unsafe {
         let mut v_shader = shader::Shader::new(gl::VERTEX_SHADER);
         let mut f_shader = shader::Shader::new(gl::FRAGMENT_SHADER);
-        v_shader.load_from_file(String::from("Shaders/shader.vert")).unwrap();
-        f_shader.load_from_file(String::from("Shaders/shader.frag")).unwrap();
+        v_shader.load_from_file("Shaders/shader.vert").unwrap();
+        f_shader.load_from_file("Shaders/shader.frag").unwrap();
 
         //  Create the program
         let mut program = shader::Program::new();
@@ -140,27 +183,11 @@ pub fn run() {
     };
 
     // Generate 2 textures to keep the previous state and our render target
-    let (framebuffer,tex) = unsafe {
-        let mut framebuffer = 0;
-        gl::GenFramebuffers(1, &mut framebuffer);
-        gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
-        
-        let mut tex : GLuint = 0;
-        gl::GenTextures(1,&mut tex);
-        gl::BindTexture(gl::TEXTURE_2D, tex);
-        gl::TexParameteri(gl::TEXTURE_2D,gl::TEXTURE_MAG_FILTER,gl::NEAREST as i32);
-        gl::TexParameteri(gl::TEXTURE_2D,gl::TEXTURE_MIN_FILTER,gl::NEAREST as i32);
+    let (width,height) = window.get_size();
 
-        let (width,height) = window.get_size();
 
-        gl::TexImage2D(gl::TEXTURE_2D,0,gl::RGB as i32, width, height, 0, gl::RGB, gl::UNSIGNED_BYTE, std::ptr::null());
-
-        gl::FramebufferTexture(gl::FRAMEBUFFER,gl::COLOR_ATTACHMENT0, tex,0);
-
-        gl::BindFramebuffer(gl::FRAMEBUFFER,0);
-
-        (framebuffer,tex)
-    };
+    let (framebuffer0, texture0) = create_framebuffer(width,height).unwrap_or_default();
+    let (framebuffer1, texture1) = create_framebuffer(width,height).unwrap_or_default();
 
     let mut prev_time = glfw.get_time();
     let mut time = glfw.get_time();
@@ -176,44 +203,50 @@ pub fn run() {
             handle_events(&mut window, event);
         }
 
-        unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER,framebuffer);
-            let (x,y) = window.get_size();
-            gl::Viewport(0,0,x,y);
+            let (width,height) = window.get_size();
 
-            gl::ClearColor(0.3, 0.3, 0.5, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+        unsafe {
+            gl::Viewport(0,0,width,height);
+            gl::ClearColor(0.0,0.0,0.0,1.0);
+
+            // Render to frame buffer 0
+            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer1);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+
+            {
+                composition_program.bind();
+                composition_program.set_uniform("u_texture0",shader::Uniform::Sampler2D(texture0));
+
+                gl::BindVertexArray(vao);
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+            }
+
+            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             {
                 program.bind();
-                let uniform = std::ffi::CString::new("u_time").unwrap();
-                program.set_uniform(uniform, shader::Uniform::Float(glfw.get_time() as f32) );
+                program.set_uniform("u_time", shader::Uniform::Float(glfw.get_time() as f32) );
+                // program.set_uniform("u_texture0", shader::Uniform::Sampler2D(texture1));
 
                 gl::BindVertexArray(vao);
                 gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
             }
 
+            // Bind fB 0
             gl::BindFramebuffer(gl::FRAMEBUFFER,0);
-            gl::Viewport(0,0,x,y);
-
-            gl::ClearColor(0.3, 0.3, 0.5, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             {
-                composition.bind();
-                gl::ActiveTexture(gl::TEXTURE0 + tex);
-                gl::BindTexture(gl::TEXTURE_2D, tex);
-
-                let uniform = std::ffi::CString::new("u_inTexture").unwrap();
-                composition.set_uniform(uniform,shader::Uniform::Sampler2D(tex));
-
+                composition_program.bind();
+                composition_program.set_uniform("u_texture0",shader::Uniform::Sampler2D(texture0));
 
                 gl::BindVertexArray(vao);
                 gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
             }
-
         }
 
         window.swap_buffers();
@@ -230,4 +263,14 @@ fn handle_events(window: &mut glfw::Window, event: glfw::WindowEvent) {
         },
         _ => {}
     }
+}
+
+#[cfg(test)]
+fn main(){
+
+    #[test]
+    fn gl_test(){
+        
+    }
+    
 }

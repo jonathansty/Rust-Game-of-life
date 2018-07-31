@@ -16,5 +16,5 @@ fn pause(){
 fn main() {
     gpu_accelerated_fluid::run();
 
-    pause();
+    // pause();
 }

@@ -15,7 +15,7 @@
                 "$rustc"
             ],
             "presentation": {
-                "echo": false,
+                "echo": true,
                 "reveal": "always",
                 "focus": false,
                 "panel": "dedicated",
@@ -33,7 +33,7 @@
                 "$rustc"
             ],
             "presentation": {
-                "echo": false,
+                "echo": true,
                 "reveal": "always",
                 "focus": false,
                 "panel": "dedicated",
@@ -55,7 +55,7 @@
                 "isDefault": true
             },
             "presentation": {
-                "echo": false,
+                "echo": true,
                 "reveal": "always",
                 "focus": false,
                 "panel": "dedicated",

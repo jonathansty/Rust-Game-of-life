@@ -11,5 +11,6 @@ out vec4 FragColor;
 
 void main() {
     // FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+    // vec4 texture_color = texture(u_texture0, uv);
     FragColor = vec4(color.rgb * (sin(u_time)+1.0)/2.0 ,1.0f);
 }
