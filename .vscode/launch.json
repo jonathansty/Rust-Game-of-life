@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Cargo launch",
+            "name": "launch (Debug)",
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/gpu_accelerated_fluid.exe",
@@ -13,8 +13,23 @@
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
-            "externalConsole": true,
+            "externalConsole": false,
             "preLaunchTask": "Rust: cargo build"
+        },
+        {
+            "name": "launch (Release)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/target/release/gpu_accelerated_fluid.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "logging": {
+                "programOutput": true
+            },
+            "preLaunchTask": "Build Release"
         }
     ]
 }

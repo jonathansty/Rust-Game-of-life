@@ -101,7 +101,7 @@ pub fn run() {
         gl::EnableVertexAttribArray(0);
         gl::EnableVertexAttribArray(1);
         gl::EnableVertexAttribArray(2);
-
+        
         gl::VertexAttribPointer(
             0,
             3,
@@ -110,8 +110,7 @@ pub fn run() {
             stride,
             std::ptr::null(),
         );
-
-
+        
         gl::VertexAttribPointer(
             1,
             2,
