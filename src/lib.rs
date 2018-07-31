@@ -13,7 +13,7 @@ pub fn run() {
 
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
-    glfw.window_hint(WindowHint::ContextVersion(4, 2));
+    glfw.window_hint(WindowHint::ContextVersion(4, 6));
     glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
 
     let (mut window, events) = glfw
@@ -31,6 +31,20 @@ pub fn run() {
     window.show();
 
     
+    let composition = {
+        let mut v_shader = shader::Shader::new(gl::VERTEX_SHADER);
+        let mut f_shader = shader::Shader::new(gl::FRAGMENT_SHADER);
+        v_shader.load_from_file(String::from("Shaders/passthrough.vert")).unwrap();
+        f_shader.load_from_file(String::from("Shaders/composition.frag")).unwrap();
+
+        let mut program = shader::Program::new();
+        program.attach_shader(&v_shader);
+        program.attach_shader(&f_shader);
+        program.link();
+
+        program
+    };
+
     let (program, vao, ibo) = unsafe {
         let mut v_shader = shader::Shader::new(gl::VERTEX_SHADER);
         let mut f_shader = shader::Shader::new(gl::FRAGMENT_SHADER);
@@ -55,14 +69,15 @@ pub fn run() {
             0, 2, 3
         ];
 
-        let (mut vbo, mut vao) = (0, 0);
+        let mut buffers : Vec<GLuint> = Vec::new();
+        buffers.resize(2,0);
+
+        let mut vao = 0;
         gl::GenVertexArrays(1, &mut vao);
+        gl::GenBuffers(2, buffers.as_ptr() as *mut GLuint);
 
-        gl::GenBuffers(1, &mut vbo);
 
-        gl::BindVertexArray(vao);
-
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+        gl::BindBuffer(gl::ARRAY_BUFFER, buffers[0]);
         gl::BufferData(
             gl::ARRAY_BUFFER,
             (vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
@@ -70,6 +85,17 @@ pub fn run() {
             gl::STATIC_DRAW,
         );
 
+        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,buffers[1]);
+        gl::BufferData(
+            gl::ELEMENT_ARRAY_BUFFER,
+            (indices.len() * std::mem::size_of::<GLint>()) as GLsizeiptr,
+            &indices[0] as  *const GLint as *const std::os::raw::c_void,
+            gl::STATIC_DRAW,
+        );
+
+
+        gl::BindVertexArray(vao);
+        gl::BindBuffer(gl::ARRAY_BUFFER, buffers[0]);
 
         let stride = 8 * std::mem::size_of::<GLfloat>() as GLsizei;
         gl::EnableVertexAttribArray(0);
@@ -105,22 +131,36 @@ pub fn run() {
         );
 
 
-        let mut ibo = 0;
-        gl::GenBuffers(1, &mut ibo);
-        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
-        gl::BufferData(
-            gl::ELEMENT_ARRAY_BUFFER,
-            (indices.len() * std::mem::size_of::<GLint>()) as GLsizeiptr,
-            &indices[0] as  *const GLint as *const std::os::raw::c_void,
-            gl::STATIC_DRAW,
-        );
 
         // unbind
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,0);
         gl::BindVertexArray(0);
 
-        (program, vao,ibo)
+        (program, vao,buffers[1])
+    };
+
+    // Generate 2 textures to keep the previous state and our render target
+    let (framebuffer,tex) = unsafe {
+        let mut framebuffer = 0;
+        gl::GenFramebuffers(1, &mut framebuffer);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
+        
+        let mut tex : GLuint = 0;
+        gl::GenTextures(1,&mut tex);
+        gl::BindTexture(gl::TEXTURE_2D, tex);
+        gl::TexParameteri(gl::TEXTURE_2D,gl::TEXTURE_MAG_FILTER,gl::NEAREST as i32);
+        gl::TexParameteri(gl::TEXTURE_2D,gl::TEXTURE_MIN_FILTER,gl::NEAREST as i32);
+
+        let (width,height) = window.get_size();
+
+        gl::TexImage2D(gl::TEXTURE_2D,0,gl::RGB as i32, width, height, 0, gl::RGB, gl::UNSIGNED_BYTE, std::ptr::null());
+
+        gl::FramebufferTexture(gl::FRAMEBUFFER,gl::COLOR_ATTACHMENT0, tex,0);
+
+        gl::BindFramebuffer(gl::FRAMEBUFFER,0);
+
+        (framebuffer,tex)
     };
 
     let mut prev_time = glfw.get_time();
@@ -133,23 +173,48 @@ pub fn run() {
         let dt = time - prev_time;
         glfw.poll_events();
 
-
         for (_, event) in glfw::flush_messages(&events) {
             handle_events(&mut window, event);
         }
 
         unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER,framebuffer);
+            let (x,y) = window.get_size();
+            gl::Viewport(0,0,x,y);
+
             gl::ClearColor(0.3, 0.3, 0.5, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
+            {
+                program.bind();
+                let uniform = std::ffi::CString::new("u_time").unwrap();
+                program.set_uniform(uniform, shader::Uniform::Float(glfw.get_time() as f32) );
 
-            program.bind();
-            program.set_uniform(String::from("u_time"), shader::Uniform::Float(glfw.get_time() as f32) );
-            gl::BindVertexArray(vao);
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
+                gl::BindVertexArray(vao);
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+            }
 
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const i32 as *const std::os::raw::c_void );
-            // gl::DrawArrays(gl::TRIANGLES,0,6);
+            gl::BindFramebuffer(gl::FRAMEBUFFER,0);
+            gl::Viewport(0,0,x,y);
+
+            gl::ClearColor(0.3, 0.3, 0.5, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            {
+                composition.bind();
+                gl::ActiveTexture(gl::TEXTURE0 + tex);
+                gl::BindTexture(gl::TEXTURE_2D, tex);
+
+                let uniform = std::ffi::CString::new("u_inTexture").unwrap();
+                composition.set_uniform(uniform,shader::Uniform::Sampler2D(tex));
+
+
+                gl::BindVertexArray(vao);
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+            }
+
         }
 
         window.swap_buffers();

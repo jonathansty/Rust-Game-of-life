@@ -3,6 +3,10 @@ layout ( location = 0) in vec2 uv;
 layout ( location = 1) in vec3 color;
 
 uniform float u_time;
+
+// Prev state 
+uniform sampler2D u_texture0;
+
 out vec4 FragColor;
 
 void main() {
