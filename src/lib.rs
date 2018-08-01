@@ -8,10 +8,10 @@ use glfw::{Context, WindowHint};
 use glw::shader;
 
 // Runs the main application
-fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut const std::os::raw::c_void)
-{
+// fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut const std::os::raw::c_void)
+// {
 
-}
+// }
 
 fn create_framebuffer(width : i32, height: i32) -> Result<(GLuint, GLuint),String>
 {
@@ -185,7 +185,6 @@ unsafe{
     // Generate 2 textures to keep the previous state and our render target
     let (width,height) = window.get_size();
 
-
     let (framebuffer0, texture0) = create_framebuffer(width,height).unwrap_or_default();
     let (framebuffer1, texture1) = create_framebuffer(width,height).unwrap_or_default();
 
@@ -207,37 +206,42 @@ unsafe{
 
         unsafe {
             gl::Viewport(0,0,width,height);
-            gl::ClearColor(0.0,0.0,0.0,1.0);
+            gl::ClearColor(0.1,0.1,0.1,1.0);
 
-            // Render to frame buffer 0
-            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer1);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-            {
-                composition_program.bind();
-                composition_program.set_uniform("u_texture0",shader::Uniform::Sampler2D(texture0));
-
-                gl::BindVertexArray(vao);
-                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
-                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
-            }
-
+            // Calculate next state
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
 
             {
                 program.bind();
-                program.set_uniform("u_time", shader::Uniform::Float(glfw.get_time() as f32) );
-                // program.set_uniform("u_texture0", shader::Uniform::Sampler2D(texture1));
+                program.set_uniform("u_time", shader::Uniform::Float(time as f32));
+                program.set_uniform("u_texture0",shader::Uniform::Sampler2D(texture1));
 
                 gl::BindVertexArray(vao);
                 gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
             }
 
-            // Bind fB 0
+            // Copy to FB0 to FB1
+            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer1);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+            {
+                composition_program.bind();
+                composition_program.set_uniform("u_texture0",shader::Uniform::Sampler2D(texture0));
+
+                gl::BindVertexArray(vao);
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,0);
+                gl::BindVertexArray(0);
+            }
+
+
+            // Copy to screen FB
             gl::BindFramebuffer(gl::FRAMEBUFFER,0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
 
             {
                 composition_program.bind();
