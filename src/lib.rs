@@ -8,10 +8,11 @@ use glfw::{Context, WindowHint};
 use glw::shader;
 
 // Runs the main application
-fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut const std::os::raw::c_void)
-{
+// #[allow(dead_code)]
+// fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut std::os::raw::c_void)
+// {
 
-}
+// }
 
 fn create_framebuffer(width : i32, height: i32) -> Result<(GLuint, GLuint),String>
 {
@@ -186,8 +187,32 @@ unsafe{
     let (width,height) = window.get_size();
 
 
-    let (framebuffer0, texture0) = create_framebuffer(width,height).unwrap_or_default();
-    let (framebuffer1, texture1) = create_framebuffer(width,height).unwrap_or_default();
+    let (framebuffer_width, framebuffer_height) = (64,64);
+    let (framebuffer0, texture0) = create_framebuffer(framebuffer_width,framebuffer_height).unwrap_or_default();
+    let (framebuffer1, texture1) = create_framebuffer(framebuffer_width,framebuffer_height).unwrap_or_default();
+
+unsafe {
+    gl::BindTexture(gl::TEXTURE_2D, texture1);
+
+    let size = framebuffer_height*framebuffer_width*3;
+    let mut image_data : Vec<u8> = Vec::with_capacity(size as usize);
+
+    // Each cell is 1 pixel
+    let cell_size = framebuffer_width / framebuffer_width;
+    for x in 0..framebuffer_width*framebuffer_height
+    {
+
+        let real_x = (x % framebuffer_width) / cell_size;
+        let real_y = (x / framebuffer_width) / cell_size;
+        let push_value = (((real_x+real_y)%2) * 255) as u8;
+        image_data.push(push_value);
+        image_data.push(push_value);
+        image_data.push(push_value);
+    }
+
+    gl::TexImage2D(gl::TEXTURE_2D,0,gl::RGB as i32, framebuffer_width, framebuffer_height, 0, gl::RGB, gl::UNSIGNED_BYTE, image_data.as_ptr() as *const std::os::raw::c_void);
+}
+
 
     let mut prev_time = glfw.get_time();
     let mut time = glfw.get_time();
@@ -196,7 +221,7 @@ unsafe{
         prev_time = time;
         time = glfw.get_time();
 
-        let dt = time - prev_time;
+        let _dt = time - prev_time;
         glfw.poll_events();
 
         for (_, event) in glfw::flush_messages(&events) {
@@ -207,11 +232,25 @@ unsafe{
 
         unsafe {
             gl::Viewport(0,0,width,height);
-            gl::ClearColor(0.0,0.0,0.0,1.0);
+            gl::ClearColor(0.0,0.0,0.0,0.0);
 
-            // Render to frame buffer 0
+
+            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            {
+                program.bind();
+                program.set_uniform("u_texture",shader::Uniform::Sampler2D(texture1));
+                program.set_uniform("u_time", shader::Uniform::Float(glfw.get_time() as f32) );
+
+                gl::BindVertexArray(vao);
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+            }
+
+            // Copy new to our "old" render target
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer1);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
 
             {
                 composition_program.bind();
@@ -222,22 +261,9 @@ unsafe{
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
             }
 
-            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-
-            {
-                program.bind();
-                program.set_uniform("u_time", shader::Uniform::Float(glfw.get_time() as f32) );
-                // program.set_uniform("u_texture0", shader::Uniform::Sampler2D(texture1));
-
-                gl::BindVertexArray(vao);
-                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
-                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
-            }
-
             // Bind fB 0
             gl::BindFramebuffer(gl::FRAMEBUFFER,0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
 
             {
                 composition_program.bind();
