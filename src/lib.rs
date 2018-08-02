@@ -8,11 +8,14 @@ use glfw::{Context, WindowHint};
 use glw::shader;
 
 // Runs the main application
-// #[allow(dead_code)]
-// fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut std::os::raw::c_void)
-// {
-
-// }
+#[allow(dead_code)]
+extern "system" fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut std::os::raw::c_void)
+{
+    unsafe {
+        let msg = std::ffi::CStr::from_ptr(message);
+        println!("GL: {}", msg.to_str().unwrap());
+    }
+}
 
 fn create_framebuffer(width : i32, height: i32) -> Result<(GLuint, GLuint),String>
 {
@@ -72,7 +75,7 @@ pub fn run() {
 
 unsafe{
     gl::Enable(gl::DEBUG_OUTPUT);
-    // gl::DebugMessageCallback(gl_debug_message, std::ptr::null());
+    gl::DebugMessageCallback(gl_debug_message, std::ptr::null());
 }
     
     let composition_program = {
@@ -89,7 +92,7 @@ unsafe{
         program
     };
 
-    let (program, vao, ibo) = unsafe {
+    let default_program = {
         let mut v_shader = shader::Shader::new(gl::VERTEX_SHADER);
         let mut f_shader = shader::Shader::new(gl::FRAGMENT_SHADER);
         v_shader.load_from_file("Shaders/shader.vert").unwrap();
@@ -100,6 +103,10 @@ unsafe{
         program.attach_shader(&v_shader);
         program.attach_shader(&f_shader);
         program.link();
+        program
+    };
+
+    let (vao, ibo) = unsafe {
 
         // Create the vertex array object
         let vertices: [f32; 32] = [
@@ -180,7 +187,7 @@ unsafe{
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,0);
         gl::BindVertexArray(0);
 
-        (program, vao,buffers[1])
+        (vao,buffers[1])
     };
 
     // Generate 2 textures to keep the previous state and our render target
@@ -234,14 +241,13 @@ unsafe {
             gl::Viewport(0,0,width,height);
             gl::ClearColor(0.0,0.0,0.0,0.0);
 
-
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
             {
-                program.bind();
-                program.set_uniform("u_texture",shader::Uniform::Sampler2D(texture1));
-                program.set_uniform("u_time", shader::Uniform::Float(glfw.get_time() as f32) );
+                default_program.bind();
+                default_program.set_uniform("u_texture",shader::Uniform::Sampler2D(texture1));
+                default_program.set_uniform("u_time", shader::Uniform::Float(glfw.get_time() as f32) );
 
                 gl::BindVertexArray(vao);
                 gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
@@ -251,7 +257,6 @@ unsafe {
             // Copy new to our "old" render target
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer1);
             gl::Clear(gl::COLOR_BUFFER_BIT);
-
             {
                 composition_program.bind();
                 composition_program.set_uniform("u_texture0",shader::Uniform::Sampler2D(texture0));
@@ -259,9 +264,13 @@ unsafe {
                 gl::BindVertexArray(vao);
                 gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,0);
+                gl::BindVertexArray(0);
             }
 
-            // Bind fB 0
+
+            // Copy to screen FB
             gl::BindFramebuffer(gl::FRAMEBUFFER,0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
