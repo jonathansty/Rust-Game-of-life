@@ -6,3 +6,4 @@ authors = ["jonathansty <7695731+jonathansty@users.noreply.github.com>"]
 [dependencies]
 gl = "0.6.0"
 glfw = "0.23.0"
+rand = "0.5.4"
