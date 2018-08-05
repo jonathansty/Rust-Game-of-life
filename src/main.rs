@@ -1,5 +1,5 @@
-extern crate gpu_accelerated_fluid;
+extern crate game_of_life;
 
 fn main() {
-    gpu_accelerated_fluid::run();
+    game_of_life::run();
 }

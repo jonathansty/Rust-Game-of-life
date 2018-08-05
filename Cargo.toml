@@ -1,5 +1,5 @@
 [package]
-name = "gpu_accelerated_fluid"
+name = "game_of_life"
 version = "0.1.0"
 authors = ["jonathansty <7695731+jonathansty@users.noreply.github.com>"]
 
