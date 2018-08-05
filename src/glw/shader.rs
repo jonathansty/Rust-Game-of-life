@@ -4,7 +4,14 @@ use gl::types::*;
 use std::ffi::CString;
 use std::fs::File;
 use std::io::Read;
+use std::error::Error;
 
+/// A wrapper around opengl shader objects. 
+/// # Example
+/// ```
+/// let mut vertex_shader = Shader::new(gl::VERTEX_SHADER);
+/// vertex_shader.load_from_file("shader.txt");
+/// ```
 pub struct Shader {
     pub id: u32,
 }
@@ -29,12 +36,12 @@ impl Shader {
         }
     }
 
-    // Loads a shader from memory
-    pub fn load_from_memory(&mut self, data: &str) -> Result<(), String> {
+    /// Loads and compiles a shader from memory.
+    pub fn load_from_memory(&mut self, data: &str) -> Result<(), Box<dyn Error>> {
         unsafe {
             let shader_id = self.id;
 
-            let c_string = CString::new(data).unwrap();
+            let c_string = CString::new(data)?;
             gl::ShaderSource(shader_id, 1, &c_string.as_ptr(), ::std::ptr::null());
             gl::CompileShader(shader_id);
 
@@ -60,15 +67,17 @@ impl Shader {
                         "Failed to compile shader : {}",
                         String::from_utf8(msg).unwrap()
                     );
-                    Err(msg)
+
+                    Err(From::from(msg))
                 }
                 _ => Ok(()), // Return empty OK
             }
         }
     }
 
-    pub fn load_from_file(&mut self, path: &str) -> Result<(), String> {
-        let mut file = File::open(&path).unwrap();
+    /// Loads and compiles a shader from a file on disk.
+    pub fn load_from_file(&mut self, path: &str) -> Result<(), Box<dyn Error> > {
+        let mut file = File::open(&path)?;
         let mut content = String::new();
 
         file.read_to_string(&mut content)
@@ -81,13 +90,15 @@ impl Shader {
                 self.load_from_memory(v)
             },
             Err(err) => {
-                Err(format!("Failed to load shader for path \"{}\": {}", path, err)) 
+                Err(From::from(format!("Failed to load shader for path \"{}\": {}", path, err))) 
             }
         }
     }
 }
 
 
+/// Enum that carries data for specific Uniforms in GLSL. 
+/// It describes what data to bind for the uniform retrieved with glGetUniformLocation
 #[allow(dead_code)]
 pub enum Uniform {
     Float(f32),

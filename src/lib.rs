@@ -52,12 +52,12 @@ impl Application{
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
         glfw.window_hint(WindowHint::ContextVersion(4, 6));
         glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
-        glfw.window_hint(WindowHint::Decorated(false));
+        // glfw.window_hint(WindowHint::Decorated(false));
 
 
         let (mut window, events) = glfw.with_primary_monitor(|instance, mon|{
                 let vid_mode = mon.unwrap().get_video_mode().unwrap();
-               instance.create_window(vid_mode.width,vid_mode.height, "Conway's game of life", glfw::WindowMode::Windowed).unwrap() 
+               instance.create_window(vid_mode.width / 2,vid_mode.height / 2, "Conway's game of life", glfw::WindowMode::Windowed).unwrap() 
         });
 
         gl::load_with(|s| window.get_proc_address(s) as *const _);
@@ -66,17 +66,17 @@ impl Application{
         window.set_framebuffer_size_polling(true);
         window.show();
 
-        unsafe{
-            gl::Enable(gl::DEBUG_OUTPUT);
-            gl::DebugMessageCallback(gl_debug_message, std::ptr::null());
-        }
+        let ctx = glw::GLContext{};
+
+        #[cfg(debug_assertions)]
+        ctx.set_debug();
 
         Ok( Application{
                 glfw,
                 window,
                 events,
                 field_size: Vec2::<i32>{x: 1280,y: 720},
-                gl_ctx: glw::GLContext{},
+                gl_ctx: ctx,
                 is_paused: false,
                 composite_quad_prog: Program::default(),
                 render_quad_prog: Program::default(),
@@ -88,14 +88,24 @@ impl Application{
     }
 
 
-    pub fn run(&mut self) -> Result< (), &'static str>
+    pub fn run(&mut self) -> Result< (), Box<dyn Error> >
     {
+        // Load necessary resources (Framebuffer, textures, fullscreen quad and shader programs)
+        self.load_resources()?;
+
+        // Change this to influence the tick rate for the simulation
+        let update_time = 1.0 / 30.0;
+
+        let mut timer = 0.0;
         let mut time = self.get_time();
+        let _x = 217;
         while !self.window.should_close() {
             let prev_time = time;
             time = self.get_time();
 
-            let _dt = time - prev_time;
+            let dt = time - prev_time;
+            timer -= dt;
+
             self.glfw.poll_events();
 
             for (_, event) in glfw::flush_messages(&self.events) {
@@ -115,31 +125,28 @@ impl Application{
                 }
             }
 
-            if self.is_paused {
-                continue;
-            } 
-
 
             let ctx = &self.gl_ctx;
             let (width, height) = self.window.get_size();
 
+            ctx.bind_rt(&RenderTarget::default());
             ctx.clear(Some(Color::new(0,0,0,0)));
 
-            ctx.set_viewport(0,0,self.field_size.x,self.field_size.y);
-            ctx.bind_rt(&self.fb_curr_state);
-            {
+
+            if !self.is_paused && timer <= 0.0 {
+                timer = update_time;
+
+                ctx.set_viewport(0,0,self.field_size.x,self.field_size.y);
+
+                ctx.bind_rt(&self.fb_curr_state);
                 ctx.bind_shader(&self.render_quad_prog);
                 self.render_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture()));
-
                 self.draw_quad();
-            }
 
-            // Copy new to our "old" render target
-            self.gl_ctx.bind_rt(&self.fb_prev_state);
-            {
+                // Copy new to our "old" render target
+                self.gl_ctx.bind_rt(&self.fb_prev_state);
                 ctx.bind_shader(&self.composite_quad_prog);
                 self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
-
                 self.draw_quad();
             }
 
@@ -161,7 +168,7 @@ impl Application{
         Ok( () )
     }
 
-    pub fn load_resources(&mut self) -> Result< () , Box<dyn Error + 'static > >
+    fn load_resources(&mut self) -> Result< () , Box<dyn Error + 'static > >
     {
         self.composite_quad_prog = {
             let mut v_shader = Shader::new(gl::VERTEX_SHADER);
@@ -272,6 +279,7 @@ impl Application{
 
             (vao,ibo)
         };
+
         self.quad_ibo = ibo;
         self.quad_vao = vao;
 
@@ -279,7 +287,7 @@ impl Application{
 
         let (width, height) = self.window.get_size();
 
-        self.field_size = Vec2::<i32>{ x: width , y: height };
+        self.field_size = Vec2::<i32>{ x: width / 2 , y: height / 2 };
 
         self.fb_curr_state = glw::RenderTarget::new(self.field_size.clone())?;
         self.fb_prev_state = glw::RenderTarget::new(self.field_size.clone())?;
@@ -316,41 +324,21 @@ impl Application{
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
         }
     }
+
     fn get_time(&self) -> f64
     {
         self.glfw.get_time()
     }
 }
 
-#[allow(unused_variables)]
-extern "system" fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut std::os::raw::c_void)
-{
-    unsafe {
-        let msg = std::ffi::CStr::from_ptr(message);
-        println!("GL: {}", msg.to_str().unwrap());
-    }
-}
+
 
 
 pub fn run() -> Result< (), Box<dyn std::error::Error + 'static> > {
-    let mut app = Application::new().unwrap();
 
-    // Load the frame buffers and generate a texture
-    app.load_resources()?;
-
-    // Start the game loop
+    // Opens a new window and initializes glfw,opengl
+    let mut app = Application::new()?;
     app.run()?;
 
     Ok( () )
-}
-
-
-#[cfg(test)]
-fn main(){
-
-    #[test]
-    fn gl_test(){
-        
-    }
-    
 }
