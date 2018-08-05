@@ -106,8 +106,10 @@ impl Application{
                     glfw::WindowEvent::Key(glfw::Key::P,_,glfw::Action::Press,_) =>{
                             self.is_paused = !self.is_paused;
                     },
-                    glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
-                        gl::Viewport(0, 0, width, height)
+                    glfw::WindowEvent::Key(glfw::Key::R,_,glfw::Action::Press,_) =>{
+                        let image_data = Application::generate_field(&self.field_size);
+                        self.fb_curr_state.map_data(&image_data);
+                        self.fb_prev_state.map_data(&image_data);
                     },
                     _ => {}
                 }
@@ -276,35 +278,34 @@ impl Application{
         // Generate 2 textures to keep the previous state and our render target
 
         let (width, height) = self.window.get_size();
-        let (framebuffer_width, framebuffer_height) = (width ,height);
 
         self.field_size = Vec2::<i32>{ x: width , y: height };
 
         self.fb_curr_state = glw::RenderTarget::new(self.field_size.clone())?;
         self.fb_prev_state = glw::RenderTarget::new(self.field_size.clone())?;
 
-        let size = framebuffer_height*framebuffer_width;
-        let mut image_data : Vec<Color> = Vec::with_capacity(size as usize);
-
-        // Each cell is 1 pixel
-        let mut rng = rand::thread_rng();
-        for _ in 0..framebuffer_width*framebuffer_height
-        {
-            if rng.gen::<f32>() > 0.1 {
-                image_data.push(Color::new(0,0,0,255));
-            }
-            else
-            {
-                image_data.push(Color::new(255,255,255,255));
-            }
-        }
-
+        let image_data = Application::generate_field(&self.field_size);
         self.fb_prev_state.map_data(&image_data);
         self.fb_curr_state.map_data(&image_data);
 
         Ok( () )
     }
+    fn generate_field(field_size: &Vec2<i32>) -> Vec<Color> {
+        let mut rng = rand::thread_rng();
+        let mut image =  Vec::new();
+        for _ in 0..field_size.x*field_size.y
+        {
+            if rng.gen::<f32>() > 0.1 {
+                image.push(Color::new(0,0,0,255));
+            }
+            else
+            {
+                image.push(Color::new(255,255,255,255));
+            }
+        }
 
+        image
+    }
 
     fn draw_quad(&self)
     {
