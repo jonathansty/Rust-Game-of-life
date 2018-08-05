@@ -290,6 +290,7 @@ impl Application{
 
         Ok( () )
     }
+
     fn generate_field(field_size: &Vec2<i32>) -> Vec<Color> {
         let mut rng = rand::thread_rng();
         let mut image =  Vec::new();

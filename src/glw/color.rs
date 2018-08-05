@@ -1,4 +1,5 @@
 
+/// A basic struct to hold color RGBA_UINT color data
 #[derive(Clone)]
 pub struct Color
 {
@@ -15,6 +16,7 @@ impl Default for Color{
 		}
 	}
 }
+
 impl Color
 {
     pub fn new(r:u8, g:u8, b:u8, a: u8) -> Color {

@@ -1,14 +1,17 @@
 extern crate gl;
 
 pub mod shader;
+pub mod program;
 pub mod color;
 pub mod vec;
 
-pub use self::vec::*;
-pub use self::color::*;
-pub use self::shader::{Shader, Program, Uniform};
+pub use self::program::Program;
+pub use self::vec::Vec2;
+pub use self::color::Color;
+pub use self::shader::{Shader, Uniform};
 
 use gl::types::*;
+
 
 /// Render target to render out/ read from 
 pub struct RenderTarget{
