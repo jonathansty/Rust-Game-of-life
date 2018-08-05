@@ -105,6 +105,14 @@ impl Drop for Program {
         }
     }
 }
+impl Default for Program {
+    fn default() -> Program
+    {
+        Program{
+            id: 0
+        }
+    }
+}
 
 impl Program {
     pub fn new() -> Program {
