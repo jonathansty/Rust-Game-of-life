@@ -91,6 +91,12 @@ pub struct Program {
     id: GLuint,
 }
 
+impl Program{
+    pub fn get_id(&self) -> u32 {
+        return self.id;
+    }
+}
+
 #[allow(dead_code)]
 pub enum Uniform {
     Float(f32),
@@ -132,11 +138,6 @@ impl Program {
     pub fn link(&self) {
         unsafe {
             gl::LinkProgram(self.id);
-        }
-    }
-    pub fn bind(&self) {
-        unsafe {
-            gl::UseProgram(self.id);
         }
     }
 

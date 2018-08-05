@@ -4,6 +4,8 @@ extern crate rand;
 
 mod glw;
 
+use std::error::Error;
+
 use gl::types::*;
 use glfw::{Context, WindowHint};
 
@@ -52,11 +54,11 @@ impl Application{
         glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
         glfw.window_hint(WindowHint::Decorated(false));
 
-        let vid_mode = glfw.with_primary_monitor(|_, mon| {
-            mon.unwrap().get_video_mode().unwrap()
-        });
 
-        let (mut window, events) = glfw.create_window(vid_mode.width, vid_mode.height, "fluid", glfw::WindowMode::Windowed).unwrap();
+        let (mut window, events) = glfw.with_primary_monitor(|instance, mon|{
+                let vid_mode = mon.unwrap().get_video_mode().unwrap();
+               instance.create_window(vid_mode.width,vid_mode.height, "Conway's game of life", glfw::WindowMode::Windowed).unwrap() 
+        });
 
         gl::load_with(|s| window.get_proc_address(s) as *const _);
 
@@ -116,40 +118,39 @@ impl Application{
             } 
 
 
-            unsafe {
-                gl::ClearColor(0.0,0.0,0.0,0.0);
+            let ctx = &self.gl_ctx;
+            let (width, height) = self.window.get_size();
 
-                let (width, height) = self.window.get_size();
+            ctx.clear(Some(Color::new(0,0,0,0)));
 
-                gl::Viewport(0,0,self.field_size.x,self.field_size.y);
-                self.gl_ctx.bind_rt(&self.fb_curr_state);
-                {
-                    self.render_quad_prog.bind();
-                    self.render_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture()));
+            ctx.set_viewport(0,0,self.field_size.x,self.field_size.y);
+            ctx.bind_rt(&self.fb_curr_state);
+            {
+                ctx.bind_shader(&self.render_quad_prog);
+                self.render_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture()));
 
-                    self.draw_quad();
-                }
+                self.draw_quad();
+            }
 
-                // Copy new to our "old" render target
-                self.gl_ctx.bind_rt(&self.fb_prev_state);
-                {
-                    self.composite_quad_prog.bind();
-                    self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
+            // Copy new to our "old" render target
+            self.gl_ctx.bind_rt(&self.fb_prev_state);
+            {
+                ctx.bind_shader(&self.composite_quad_prog);
+                self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
 
-                    self.draw_quad();
-                }
+                self.draw_quad();
+            }
 
 
-                // Copy to screen FB
-                gl::Viewport(0,0,width,height);
-                self.gl_ctx.bind_rt(&RenderTarget::default());
-                gl::Clear(gl::COLOR_BUFFER_BIT);
-                {
-                    self.composite_quad_prog.bind();
-                    self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
+            // Copy to screen FB
+            ctx.set_viewport(0,0,width,height);
+            ctx.bind_rt(&RenderTarget::default());
+            ctx.clear(None);
+            {
+                ctx.bind_shader(&self.composite_quad_prog);
+                self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
 
-                    self.draw_quad();
-                }
+                self.draw_quad();
             }
 
             self.window.swap_buffers();
@@ -158,7 +159,7 @@ impl Application{
         Ok( () )
     }
 
-    pub fn load_resources(&mut self) -> Result< (), &'static str>
+    pub fn load_resources(&mut self) -> Result< () , Box<dyn Error + 'static > >
     {
         self.composite_quad_prog = {
             let mut v_shader = Shader::new(gl::VERTEX_SHADER);
@@ -290,11 +291,11 @@ impl Application{
         for _ in 0..framebuffer_width*framebuffer_height
         {
             if rng.gen::<f32>() > 0.1 {
-                image_data.push(Color::new(0,0,0));
+                image_data.push(Color::new(0,0,0,255));
             }
             else
             {
-                image_data.push(Color::new(255,255,255));
+                image_data.push(Color::new(255,255,255,255));
             }
         }
 
@@ -329,10 +330,16 @@ extern "system" fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLu
 }
 
 
-pub fn run() {
+pub fn run() -> Result< (), Box<dyn std::error::Error + 'static> > {
     let mut app = Application::new().unwrap();
-    app.load_resources();
-    app.run();
+
+    // Load the frame buffers and generate a texture
+    app.load_resources()?;
+
+    // Start the game loop
+    app.run()?;
+
+    Ok( () )
 }
 
 
