@@ -11,7 +11,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn draw(&self, ctx : &super::GLContext) {
+    pub fn draw(&self) {
         unsafe{
             gl::BindVertexArray(self.vao);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,self.ibo);

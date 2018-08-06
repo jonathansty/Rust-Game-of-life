@@ -82,6 +82,7 @@ impl Program {
 
 }
 
+#[derive(Default)]
 pub struct PipelineBuilder{
     vshader: Option<GLuint>,
     fshader: Option<GLuint>,
@@ -89,18 +90,15 @@ pub struct PipelineBuilder{
 
 impl PipelineBuilder {
     pub fn new() -> PipelineBuilder{
-        PipelineBuilder{
-            vshader: None,
-            fshader: None,
-        }
+        PipelineBuilder::default()
     }
 
-    pub fn with_vertex_shader(&mut self, shader: Shader) -> &mut Self
+    pub fn with_vertex_shader(&mut self, _shader: Shader) -> &mut Self
     {
         self
     }
 
-    pub fn with_fragment_shader(&mut self, shader: Shader) -> &mut Self
+    pub fn with_fragment_shader(&mut self, _shader: Shader) -> &mut Self
     {
         self
     }

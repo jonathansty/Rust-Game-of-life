@@ -7,7 +7,7 @@ pub mod math;
 pub mod rendertarget;
 pub mod mesh;
 
-pub use self::mesh::*;
+pub use self::mesh::{Mesh,MeshBuilder};
 pub use self::program::{Program,PipelineBuilder};
 pub use self::math::Vec2;
 pub use self::color::Color;
@@ -29,22 +29,26 @@ impl GLContext{
         }
     }
 
-    pub fn set_debug(&self) {
+    pub fn set_debug(&self) -> &Self {
         unsafe{
             gl::Enable(gl::DEBUG_OUTPUT);
             gl::DebugMessageCallback(GLContext::gl_debug_message, super::std::ptr::null());
         }
+
+        self
     }
 
     /// Set's the current active viewport
-    pub fn set_viewport(&self, x: i32, y: i32, width: i32, height: i32){
+    pub fn set_viewport(&self, x: i32, y: i32, width: i32, height: i32) -> &Self{
         unsafe{
             gl::Viewport(x,y,width,height);
         }
+
+        self
     }
 
     /// Clears the current bound render target
-    pub fn clear(&self, color : super::std::option::Option<Color>){
+    pub fn clear(&self, color : super::std::option::Option<Color>) -> &Self {
         unsafe {
             match color {
                 Some(c) => gl::ClearColor(c.r as f32 / 255.0,c.g as f32 / 255.0,c.b as f32 / 255.0, c.a as f32 / 255.0),
@@ -54,6 +58,7 @@ impl GLContext{
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
+        self
     }
 
     /// Binds a shader program
@@ -61,6 +66,7 @@ impl GLContext{
         unsafe{
             gl::UseProgram(program.get_id());
         }
+        
     }
 
     /// Binds a render target for drawing

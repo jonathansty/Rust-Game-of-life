@@ -6,7 +6,6 @@ mod glw;
 
 use std::error::Error;
 
-use gl::types::*;
 use glfw::{Context, WindowHint};
 
 use glw::Shader;
@@ -254,7 +253,7 @@ impl Application{
     fn draw_quad(&self)
     {
         if let Some(ref q) = self.quad {
-            q.draw(&self.gl_ctx);
+            q.draw();
         }
     }
 
