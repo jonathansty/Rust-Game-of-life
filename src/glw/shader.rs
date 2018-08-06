@@ -7,11 +7,6 @@ use std::io::Read;
 use std::error::Error;
 
 /// A wrapper around opengl shader objects. 
-/// # Example
-/// ```
-/// let mut vertex_shader = Shader::new(gl::VERTEX_SHADER);
-/// vertex_shader.load_from_file("shader.txt");
-/// ```
 pub struct Shader {
     id: u32,
 }

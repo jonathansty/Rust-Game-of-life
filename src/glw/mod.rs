@@ -20,6 +20,7 @@ use gl::types::*;
 pub struct GLContext;
 
 impl GLContext{
+
     #[allow(unused_variables)]
     extern "system" fn gl_debug_message(source : GLenum, msg_type : GLenum, id : GLuint, severity : GLenum, length : GLsizei, message : *const GLchar, param : *mut super::std::os::raw::c_void)
     {
@@ -75,8 +76,4 @@ impl GLContext{
            gl::BindFramebuffer(gl::FRAMEBUFFER, rt.get_fb());
        }
     }
-}
-
-impl GLContext {
-
 }
