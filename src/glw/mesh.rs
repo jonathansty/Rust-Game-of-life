@@ -4,7 +4,7 @@ use gl::types::*;
 use std;
 
 pub struct Mesh {
-    vertex_count: i32,
+    _vertex_count: i32,
     index_count: i32,
     ibo: GLuint,
     vao: GLuint,
@@ -120,7 +120,7 @@ impl MeshBuilder {
         }
 
         Mesh{
-            vertex_count: vert_count as i32,
+            _vertex_count: vert_count as i32,
             index_count: ind_count as i32,
             ibo,
             vao,

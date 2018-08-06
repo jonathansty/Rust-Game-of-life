@@ -6,11 +6,12 @@ use gl::types::*;
 
 use std::ffi::CString;
 
-pub struct Program {
+#[derive(Default)]
+pub struct GraphicsPipeline {
     id: GLuint,
 }
 
-impl Drop for Program {
+impl Drop for GraphicsPipeline {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteProgram(self.id);
@@ -18,39 +19,19 @@ impl Drop for Program {
     }
 }
 
-impl Default for Program {
-    fn default() -> Program
-    {
-        Program{
-            id: 0
-        }
-    }
-}
-
-impl Program {
-    pub fn get_id(&self) -> u32 {
+impl GraphicsPipeline {
+    pub fn get_id(&self) -> GLuint {
         return self.id;
     }
 
-    pub fn new() -> Program {
+    fn new() -> GraphicsPipeline {
         unsafe {
-            Program {
+            GraphicsPipeline {
                 id: gl::CreateProgram(),
             }
         }
     }
 
-    pub fn attach_shader(&self, shader: &Shader) {
-        unsafe {
-            gl::AttachShader(self.id, shader.id);
-        }
-    }
-
-    pub fn link(&self) {
-        unsafe {
-            gl::LinkProgram(self.id);
-        }
-    }
 
     pub fn set_uniform(&self, uniform_name: &str, uni: Uniform) {
         unsafe {
@@ -84,8 +65,8 @@ impl Program {
 
 #[derive(Default)]
 pub struct PipelineBuilder{
-    vshader: Option<GLuint>,
-    fshader: Option<GLuint>,
+    vshader: Option<Shader>,
+    fshader: Option<Shader>,
 }
 
 impl PipelineBuilder {
@@ -93,21 +74,41 @@ impl PipelineBuilder {
         PipelineBuilder::default()
     }
 
-    pub fn with_vertex_shader(&mut self, _shader: Shader) -> &mut Self
+    pub fn with_vertex_shader(&mut self, shader: Shader) -> &mut Self
     {
+        self.vshader = Some(shader);
+
         self
     }
 
-    pub fn with_fragment_shader(&mut self, _shader: Shader) -> &mut Self
+    pub fn with_fragment_shader(&mut self, shader: Shader) -> &mut Self
     {
+        self.fshader = Some(shader);
+
         self
     }
 
-    pub fn build(&self) -> Program
+    pub fn build(&self) -> GraphicsPipeline
     {
-        Program{
-            id: 0
+        let result = GraphicsPipeline::new();
+
+        if let Some(ref shader) = self.vshader {
+            unsafe {
+                gl::AttachShader(result.id, shader.get_id());
+            }
         }
+
+        if let Some(ref shader) = self.fshader {
+            unsafe {
+                gl::AttachShader(result.id, shader.get_id());
+            }
+        }
+
+        unsafe {
+            gl::LinkProgram(result.get_id());
+        }
+
+        result
     }
 
 }

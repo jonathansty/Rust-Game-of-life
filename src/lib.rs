@@ -9,7 +9,7 @@ use std::error::Error;
 use glfw::{Context, WindowHint};
 
 use glw::Shader;
-use glw::Program;
+use glw::GraphicsPipeline;
 use glw::Uniform;
 use glw::RenderTarget;
 use glw::Color;
@@ -32,8 +32,8 @@ pub struct Application
     fb_prev_state : RenderTarget,
     fb_curr_state : RenderTarget,
 
-    render_quad_prog : glw::Program,
-    composite_quad_prog : glw::Program,
+    render_quad_prog : glw::GraphicsPipeline,
+    composite_quad_prog : glw::GraphicsPipeline,
 
     // Quad mesh
     quad : Option<glw::Mesh>,
@@ -76,8 +76,8 @@ impl Application{
                 field_size: Vec2::<i32>{x: 1280,y: 720},
                 gl_ctx: ctx,
                 is_paused: false,
-                composite_quad_prog: Program::default(),
-                render_quad_prog: Program::default(),
+                composite_quad_prog: GraphicsPipeline::default(),
+                render_quad_prog: GraphicsPipeline::default(),
                 fb_curr_state: RenderTarget::default(),
                 fb_prev_state: RenderTarget::default(),
                 quad: None
@@ -114,7 +114,6 @@ impl Application{
                     },
                     glfw::WindowEvent::Key(glfw::Key::R,_,glfw::Action::Press,_) =>{
                         let image_data = Application::generate_field(&self.field_size);
-                        self.fb_curr_state.map_data(&image_data);
                         self.fb_prev_state.map_data(&image_data);
                     },
                     _ => {}
@@ -135,13 +134,13 @@ impl Application{
                 ctx.set_viewport(0,0,self.field_size.x,self.field_size.y);
 
                 ctx.bind_rt(&self.fb_curr_state);
-                ctx.bind_shader(&self.render_quad_prog);
+                ctx.bind_pipeline(&self.render_quad_prog);
                 self.render_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture()));
                 self.draw_quad();
 
                 // Copy new to our "old" render target
                 self.gl_ctx.bind_rt(&self.fb_prev_state);
-                ctx.bind_shader(&self.composite_quad_prog);
+                ctx.bind_pipeline(&self.composite_quad_prog);
                 self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
                 self.draw_quad();
             }
@@ -152,7 +151,7 @@ impl Application{
             ctx.bind_rt(&RenderTarget::default());
             ctx.clear(None);
             {
-                ctx.bind_shader(&self.composite_quad_prog);
+                ctx.bind_pipeline(&self.composite_quad_prog);
                 self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
 
                 self.draw_quad();
@@ -166,37 +165,30 @@ impl Application{
 
     fn load_resources(&mut self) -> Result< () , Box<dyn Error + 'static > >
     {
-        let composition = glw::PipelineBuilder::new()
-            .with_vertex_shader(Shader{id: 0})
-            .with_fragment_shader(Shader{id: 0})
-            .build();
-
         self.composite_quad_prog = {
             let mut v_shader = Shader::new(gl::VERTEX_SHADER);
             let mut f_shader = Shader::new(gl::FRAGMENT_SHADER);
             v_shader.load_from_file("Shaders/passthrough.vert").unwrap();
             f_shader.load_from_file("Shaders/composition.frag").unwrap();
 
-            let program = Program::new();
-            program.attach_shader(&v_shader);
-            program.attach_shader(&f_shader);
-            program.link();
-
-            program
+            glw::PipelineBuilder::new()
+                .with_vertex_shader(v_shader)
+                .with_fragment_shader(f_shader)
+                .build()
         };
 
         self.render_quad_prog = {
+
             let mut v_shader = Shader::new(gl::VERTEX_SHADER);
             let mut f_shader = Shader::new(gl::FRAGMENT_SHADER);
             v_shader.load_from_file("Shaders/shader.vert").unwrap();
             f_shader.load_from_file("Shaders/shader.frag").unwrap();
 
             //  Create the program
-            let program = Program::new();
-            program.attach_shader(&v_shader);
-            program.attach_shader(&f_shader);
-            program.link();
-            program
+            glw::PipelineBuilder::new()
+                .with_vertex_shader(v_shader)
+                .with_fragment_shader(f_shader)
+                .build()
         };
 
         // Create the vertex array object
@@ -211,12 +203,10 @@ impl Application{
             0, 2, 3
         ];
 
-        let fullscreen_quad = glw::MeshBuilder::new()
+        self.quad = Some(glw::MeshBuilder::new()
                     .with_vertex_data(&vertices)
                     .with_index_data(&indices)
-                    .build();
-
-        self.quad = Some(fullscreen_quad);
+                    .build());
 
         // Generate 2 textures to keep the previous state and our render target
 

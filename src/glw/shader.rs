@@ -13,7 +13,7 @@ use std::error::Error;
 /// vertex_shader.load_from_file("shader.txt");
 /// ```
 pub struct Shader {
-    pub id: u32,
+    id: u32,
 }
 
 impl Drop for Shader {
@@ -27,6 +27,9 @@ impl Drop for Shader {
 }
 
 impl Shader {
+    pub fn get_id(&self) -> GLuint {
+        self.id
+    }
     // Creates a new empty shader object
     pub fn new(shader_type: GLenum) -> Shader {
         unsafe {

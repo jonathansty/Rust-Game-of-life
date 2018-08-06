@@ -8,7 +8,7 @@ pub mod rendertarget;
 pub mod mesh;
 
 pub use self::mesh::{Mesh,MeshBuilder};
-pub use self::program::{Program,PipelineBuilder};
+pub use self::program::{GraphicsPipeline,PipelineBuilder};
 pub use self::math::Vec2;
 pub use self::color::Color;
 pub use self::shader::{Shader, Uniform};
@@ -62,11 +62,11 @@ impl GLContext{
     }
 
     /// Binds a shader program
-    pub fn bind_shader(&self, program: &Program){
+    pub fn bind_pipeline(&self, program: &GraphicsPipeline){
         unsafe{
             gl::UseProgram(program.get_id());
         }
-        
+
     }
 
     /// Binds a render target for drawing
