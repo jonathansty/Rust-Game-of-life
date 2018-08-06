@@ -44,6 +44,7 @@ impl MeshBuilder {
         self
     }
 
+    // #TODO: Build the mesh using a Vertex Description struct
     pub fn build(&self) -> Mesh {
         // Create indices
         let (mut ibo, mut vao) = (0, 0);
