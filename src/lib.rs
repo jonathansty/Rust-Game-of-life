@@ -37,8 +37,7 @@ pub struct Application
     composite_quad_prog : glw::Program,
 
     // Quad mesh
-    quad_vao : GLuint,
-    quad_ibo : GLuint,
+    quad : Option<glw::Mesh>,
 
     // Program state
     is_paused: bool,
@@ -46,7 +45,7 @@ pub struct Application
 }
 
 impl Application{
-    
+
     pub fn new() -> Result<Application, Box<dyn std::error::Error>>
     {
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
@@ -82,14 +81,12 @@ impl Application{
                 render_quad_prog: Program::default(),
                 fb_curr_state: RenderTarget::default(),
                 fb_prev_state: RenderTarget::default(),
-                quad_vao: 0,
-                quad_ibo: 0,
+                quad: None
             })
     }
 
 
-    pub fn run(&mut self) -> Result< (), Box<dyn Error> >
-    {
+    pub fn run(&mut self) -> Result< (), Box<dyn Error> > {
         // Load necessary resources (Framebuffer, textures, fullscreen quad and shader programs)
         self.load_resources()?;
 
@@ -198,95 +195,28 @@ impl Application{
             program
         };
 
-         let (vao, ibo) = unsafe {
+        // Create the vertex array object
+        let vertices: [f32; 32] = [
+            -1.0, -1.0, 0.0, 0.0,0.0, 1.0,0.0,0.0,
+            1.0, -1.0, 0.0, 1.0,0.0, 0.0,1.0,0.0,
+            1.0, 1.0, 0.0,  1.0,1.0, 0.0,0.0,1.0,
+            -1.0, 1.0, 0.0, 0.0,1.0, 1.0,0.0,1.0 ];
 
-            // Create the vertex array object
-            let vertices: [f32; 32] = [
-                -1.0, -1.0, 0.0, 0.0,0.0, 1.0,0.0,0.0,
-                1.0, -1.0, 0.0, 1.0,0.0, 0.0,1.0,0.0,
-                1.0, 1.0, 0.0,  1.0,1.0, 0.0,0.0,1.0,
-                -1.0, 1.0, 0.0, 0.0,1.0, 1.0,0.0,1.0 ];
+        let indices : [i32; 6] = [
+            0, 1, 2,
+            0, 2, 3
+        ];
 
-            let indices : [i32; 6] = [
-                0, 1, 2,
-                0, 2, 3
-            ];
+        let fullscreen_quad = glw::MeshBuilder::new()
+                    .with_vertex_data(&vertices)
+                    .with_index_data(&indices)
+                    .build();
 
-            let (mut ibo, mut vbo) = (0,0);
-
-            let mut vao = 0;
-            gl::GenVertexArrays(1, &mut vao);
-            gl::GenBuffers(1, &mut ibo);
-            gl::GenBuffers(1, &mut vbo);
-
-
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::BufferData(
-                gl::ARRAY_BUFFER,
-                (vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-                &vertices[0] as *const f32 as *const std::os::raw::c_void,
-                gl::STATIC_DRAW,
-            );
-
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,ibo);
-            gl::BufferData(
-                gl::ELEMENT_ARRAY_BUFFER,
-                (indices.len() * std::mem::size_of::<GLint>()) as GLsizeiptr,
-                &indices[0] as  *const GLint as *const std::os::raw::c_void,
-                gl::STATIC_DRAW,
-            );
-
-
-            gl::BindVertexArray(vao);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-
-            let stride = 8 * std::mem::size_of::<GLfloat>() as GLsizei;
-            gl::EnableVertexAttribArray(0);
-            gl::EnableVertexAttribArray(1);
-            gl::EnableVertexAttribArray(2);
-            
-            gl::VertexAttribPointer(
-                0,
-                3,
-                gl::FLOAT,
-                gl::FALSE,
-                stride,
-                std::ptr::null(),
-            );
-            
-            gl::VertexAttribPointer(
-                1,
-                2,
-                gl::FLOAT,
-                gl::FALSE,
-                stride,
-                (3 * std::mem::size_of::<GLfloat>()) as *const std::os::raw::c_void
-            );
-
-            gl::VertexAttribPointer(
-                2,
-                3,
-                gl::FLOAT,
-                gl::FALSE,
-                stride,
-                (5 * std::mem::size_of::<GLfloat>()) as *const std::os::raw::c_void
-            );
-
-            // unbind
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,0);
-            gl::BindVertexArray(0);
-
-            (vao,ibo)
-        };
-
-        self.quad_ibo = ibo;
-        self.quad_vao = vao;
+        self.quad = Some(fullscreen_quad);
 
         // Generate 2 textures to keep the previous state and our render target
 
         let (width, height) = self.window.get_size();
-
         self.field_size = Vec2::<i32>{ x: width / 2 , y: height / 2 };
 
         self.fb_curr_state = glw::RenderTarget::new(self.field_size.clone())?;
@@ -318,10 +248,8 @@ impl Application{
 
     fn draw_quad(&self)
     {
-        unsafe{
-            gl::BindVertexArray(self.quad_vao);
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER,self.quad_ibo);
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+        if let Some(ref q) = self.quad {
+            q.draw(&self.gl_ctx);
         }
     }
 

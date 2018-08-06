@@ -30,6 +30,6 @@
                 "programOutput": true
             },
             "preLaunchTask": "Build Release"
-        }
+        },
     ]
 }

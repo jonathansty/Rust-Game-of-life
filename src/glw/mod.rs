@@ -5,7 +5,9 @@ pub mod program;
 pub mod color;
 pub mod math;
 pub mod rendertarget;
+pub mod mesh;
 
+pub use self::mesh::*;
 pub use self::program::Program;
 pub use self::math::Vec2;
 pub use self::color::Color;
