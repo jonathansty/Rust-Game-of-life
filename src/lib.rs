@@ -167,6 +167,11 @@ impl Application{
 
     fn load_resources(&mut self) -> Result< () , Box<dyn Error + 'static > >
     {
+        let composition = glw::PipelineBuilder::new()
+            .with_vertex_shader(Shader{id: 0})
+            .with_fragment_shader(Shader{id: 0})
+            .build();
+
         self.composite_quad_prog = {
             let mut v_shader = Shader::new(gl::VERTEX_SHADER);
             let mut f_shader = Shader::new(gl::FRAGMENT_SHADER);

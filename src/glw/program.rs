@@ -81,3 +81,35 @@ impl Program {
     }
 
 }
+
+pub struct PipelineBuilder{
+    vshader: Option<GLuint>,
+    fshader: Option<GLuint>,
+}
+
+impl PipelineBuilder {
+    pub fn new() -> PipelineBuilder{
+        PipelineBuilder{
+            vshader: None,
+            fshader: None,
+        }
+    }
+
+    pub fn with_vertex_shader(&mut self, shader: Shader) -> &mut Self
+    {
+        self
+    }
+
+    pub fn with_fragment_shader(&mut self, shader: Shader) -> &mut Self
+    {
+        self
+    }
+
+    pub fn build(&self) -> Program
+    {
+        Program{
+            id: 0
+        }
+    }
+
+}

@@ -8,7 +8,7 @@ pub mod rendertarget;
 pub mod mesh;
 
 pub use self::mesh::*;
-pub use self::program::Program;
+pub use self::program::{Program,PipelineBuilder};
 pub use self::math::Vec2;
 pub use self::color::Color;
 pub use self::shader::{Shader, Uniform};
