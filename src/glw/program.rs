@@ -5,9 +5,11 @@ use super::shader::{Shader,Uniform};
 use gl::types::*;
 
 use std::ffi::CString;
+use std::rc::Rc;
 
 #[derive(Default)]
 pub struct GraphicsPipeline {
+    // Open GL program ID
     id: GLuint,
 }
 
@@ -27,7 +29,7 @@ impl GraphicsPipeline {
     fn new() -> GraphicsPipeline {
         unsafe {
             GraphicsPipeline {
-                id: gl::CreateProgram(),
+                id: gl::CreateProgram()
             }
         }
     }
@@ -52,8 +54,20 @@ impl GraphicsPipeline {
         }
     }
 
-    fn set_sampler(&self, sampler : GLuint)
+    fn attach(&mut self, shader : &Shader)
     {
+        unsafe {
+            gl::AttachShader(self.id, shader.get_id());
+        }
+    }
+
+    fn link(&mut self){
+        unsafe{
+            gl::LinkProgram(self.id);
+        }
+    }
+
+    fn set_sampler(&self, sampler : GLuint){
         unsafe {
             // Bind our input texture
             gl::ActiveTexture(gl::TEXTURE0 + sampler);
@@ -65,8 +79,8 @@ impl GraphicsPipeline {
 
 #[derive(Default)]
 pub struct PipelineBuilder{
-    vshader: Option<Shader>,
-    fshader: Option<Shader>,
+    vshader: Option<Rc<Shader>>,
+    fshader: Option<Rc<Shader>>,
 }
 
 impl PipelineBuilder {
@@ -76,37 +90,31 @@ impl PipelineBuilder {
 
     pub fn with_vertex_shader(&mut self, shader: Shader) -> &mut Self
     {
-        self.vshader = Some(shader);
+        self.vshader = Some(Rc::new(shader));
 
         self
     }
 
     pub fn with_fragment_shader(&mut self, shader: Shader) -> &mut Self
     {
-        self.fshader = Some(shader);
+        self.fshader = Some(Rc::new(shader));
 
         self
     }
 
     pub fn build(&self) -> GraphicsPipeline
     {
-        let result = GraphicsPipeline::new();
+        let mut result = GraphicsPipeline::new();
 
         if let Some(ref shader) = self.vshader {
-            unsafe {
-                gl::AttachShader(result.id, shader.get_id());
-            }
+            result.attach(&shader);
         }
 
         if let Some(ref shader) = self.fshader {
-            unsafe {
-                gl::AttachShader(result.id, shader.get_id());
-            }
+            result.attach(&shader);
         }
 
-        unsafe {
-            gl::LinkProgram(result.get_id());
-        }
+        result.link();
 
         result
     }

@@ -5,15 +5,8 @@ extern crate rand;
 mod glw;
 
 use std::error::Error;
-
 use glfw::{Context, WindowHint};
-
-use glw::Shader;
-use glw::GraphicsPipeline;
-use glw::Uniform;
-use glw::RenderTarget;
-use glw::Color;
-use glw::Vec2;
+use glw::{Shader, GraphicsPipeline, Uniform, RenderTarget, Color, Vec2};
 
 use std::sync::mpsc::Receiver;
 
