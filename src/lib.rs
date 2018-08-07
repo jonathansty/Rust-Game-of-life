@@ -126,14 +126,14 @@ impl Application{
 
                 ctx.set_viewport(0,0,self.field_size.x,self.field_size.y);
 
-                ctx.bind_rt(&self.fb_curr_state);
-                ctx.bind_pipeline(&self.render_quad_prog);
-                self.render_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture()));
+                ctx.bind_rt(&self.fb_curr_state); // Bind the render target 
+                ctx.bind_pipeline(&self.render_quad_prog); // Use the Game of life program
+                self.render_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture())); // Bind our previous state as a texture
                 self.draw_quad();
 
                 // Copy new to our "old" render target
-                self.gl_ctx.bind_rt(&self.fb_prev_state);
-                ctx.bind_pipeline(&self.composite_quad_prog);
+                self.gl_ctx.bind_rt(&self.fb_prev_state); // Bind our previous state as a render target
+                ctx.bind_pipeline(&self.composite_quad_prog); // This program just copies over the bound texture u_texture pixel per pixel
                 self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
                 self.draw_quad();
             }
@@ -204,7 +204,7 @@ impl Application{
         // Generate 2 textures to keep the previous state and our render target
 
         let (width, height) = self.window.get_size();
-        self.field_size = Vec2::<i32>{ x: width / 2 , y: height / 2 };
+        self.field_size = Vec2::<i32>{ x: width / 4 , y: height / 4 };
 
         self.fb_curr_state = glw::RenderTarget::new(self.field_size.clone())?;
         self.fb_prev_state = glw::RenderTarget::new(self.field_size.clone())?;
