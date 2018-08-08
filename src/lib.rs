@@ -1,3 +1,4 @@
+extern crate gl;
 extern crate glw;
 extern crate glfw;
 extern crate rand;
@@ -52,7 +53,7 @@ impl Application{
         });
 
         // Setting up the opengl context
-        let ctx = glw::GLContext::new(&mut window);
+        let mut ctx = glw::GLContext::new(&mut window);
 
         #[cfg(debug_assertions)]
         ctx.set_debug();
@@ -83,13 +84,18 @@ impl Application{
         // Load necessary resources (Framebuffer, textures, fullscreen quad and shader programs)
         self.load_resources()?;
 
+        self.glfw.set_swap_interval(glfw::SwapInterval::None);
         // Change this to influence the tick rate for the simulation
-        let update_time = 1.0 / 30.0;
+        // let update_time = 1.0 / 1.0;
+        // let update_time = 1.0 / 400.0;
+        let update_time = 0.0;
 
         let mut timer = 0.0;
         let mut time = self.get_time();
         let _x = 217;
         while !self.window.should_close() {
+
+
             let prev_time = time;
             time = self.get_time();
 
@@ -115,43 +121,43 @@ impl Application{
             }
 
 
-            let ctx = &self.gl_ctx;
             let (width, height) = self.window.get_size();
 
-            ctx.bind_rt(&RenderTarget::default());
-            ctx.clear(Some(Color::new(0,0,0,0)));
+
+            self.gl_ctx.bind_rt(&RenderTarget::default());
+            self.gl_ctx.clear(Some(Color::new(0,0,0,0)));
 
 
             if !self.is_paused && timer <= 0.0 {
                 timer = update_time;
 
-                ctx.set_viewport(0,0,self.field_size.x,self.field_size.y);
-
-                ctx.bind_rt(&self.fb_curr_state); // Bind the render target 
-                ctx.bind_pipeline(&self.render_quad_prog); // Use the Game of life program
+                self.gl_ctx.bind_pipeline(&self.render_quad_prog); 
+                self.gl_ctx.bind_image(&self.fb_curr_state);
                 self.render_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture())); // Bind our previous state as a texture
-                self.draw_quad();
 
-                // Copy new to our "old" render target
-                self.gl_ctx.bind_rt(&self.fb_prev_state); // Bind our previous state as a render target
-                ctx.bind_pipeline(&self.composite_quad_prog); // This program just copies over the bound texture u_texture pixel per pixel
-                self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
-                self.draw_quad();
+                self.gl_ctx.dispatch_compute(self.field_size.x as u32,self.field_size.y as u32,1);
+
+                unsafe{
+                    gl::MemoryBarrier(gl::ALL_BARRIER_BITS);
+                }
+
+                std::mem::swap(&mut self.fb_curr_state,&mut self.fb_prev_state);
             }
 
 
             // Copy to screen FB
-            ctx.set_viewport(0,0,width,height);
-            ctx.bind_rt(&RenderTarget::default());
-            ctx.clear(None);
+            self.gl_ctx.set_viewport(0,0,width,height);
+            self.gl_ctx.bind_rt(&RenderTarget::default());
+            self.gl_ctx.clear(None);
             {
-                ctx.bind_pipeline(&self.composite_quad_prog);
-                self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_curr_state.get_texture()));
+                self.gl_ctx.bind_pipeline(&self.composite_quad_prog);
+                self.composite_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture()));
 
                 self.draw_quad();
             }
 
             self.window.swap_buffers();
+
         }
 
         Ok( () )
@@ -176,13 +182,15 @@ impl Application{
 
             let mut v_shader = Shader::new(ShaderType::Vertex);
             let mut f_shader = Shader::new(ShaderType::Fragment);
+            let mut c_shader = Shader::new(ShaderType::Compute);
+
             v_shader.load_from_file("Shaders/shader.vert").unwrap();
             f_shader.load_from_file("Shaders/shader.frag").unwrap();
+            c_shader.load_from_file("Shaders/shader.compute").unwrap();
 
             //  Create the program
             glw::PipelineBuilder::new()
-                .with_vertex_shader(v_shader)
-                .with_fragment_shader(f_shader)
+                .with_compute_shader(c_shader)
                 .build()
         };
 
@@ -206,7 +214,7 @@ impl Application{
         // Generate 2 textures to keep the previous state and our render target
 
         let (width, height) = self.window.get_size();
-        self.field_size = Vec2::<i32>{ x: width / 4 , y: height / 4 };
+        self.field_size = Vec2::<i32>{ x: width * 2 , y: height*2 };
 
         self.fb_curr_state = glw::RenderTarget::new(self.field_size.clone())?;
         self.fb_prev_state = glw::RenderTarget::new(self.field_size.clone())?;

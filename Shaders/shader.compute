@@ -1,0 +1,38 @@
+#version 440 
+layout(local_size_x = 1 ,local_size_y = 1) in;
+
+layout(rgba8, binding = 0) uniform image2D img_output;
+
+uniform sampler2D u_texture; // Previous state it's texture we can sample from
+
+void main() {
+	vec4 pixel        = vec4(0.0,0.0,0.0,1.0);
+	ivec2 pixel_coord = ivec2(gl_GlobalInvocationID.xy);
+
+    float curr = texelFetch(u_texture,pixel_coord,0).r;
+    bool alive = curr > 0;
+
+    int count = 0;
+    for(int i = -1; i <= 1; ++i)
+    {
+        for(int j = -1; j <= 1; ++j)
+        {
+            if(i == 0 && j == 0)
+             continue;
+
+            float tex = texelFetch(u_texture,pixel_coord + ivec2(i,j),0).r;
+            if(tex > 0)
+                ++count;
+        }
+    }
+
+    float new_cell = curr;
+    if(count < 2)                                   new_cell = 0.0f;
+    else if(alive && (count == 2 || count == 3))    new_cell = 1.0f;
+    else if(alive && count > 3)                     new_cell = 0.0f;
+    else if(!alive && count == 3)                   new_cell = 1.0f;
+
+    pixel =  vec4(new_cell,new_cell,new_cell,1.0f);
+
+	imageStore(img_output, pixel_coord, pixel);
+}
