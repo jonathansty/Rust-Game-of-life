@@ -1,12 +1,12 @@
-extern crate gl;
+extern crate glw;
 extern crate glfw;
 extern crate rand;
 
-mod glw;
 
 use std::error::Error;
 use glfw::{Context, WindowHint};
 use glw::{Shader, GraphicsPipeline, Uniform, RenderTarget, Color, Vec2};
+use glw::shader::ShaderType;
 
 use std::sync::mpsc::Receiver;
 
@@ -51,16 +51,17 @@ impl Application{
                instance.create_window(vid_mode.width / 2,vid_mode.height / 2, "Conway's game of life", glfw::WindowMode::Windowed).unwrap() 
         });
 
-        gl::load_with(|s| window.get_proc_address(s) as *const _);
+        // Setting up the opengl context
+        let ctx = glw::GLContext::new(&mut window);
+
+        #[cfg(debug_assertions)]
+        ctx.set_debug();
 
         window.set_key_polling(true);
         window.set_framebuffer_size_polling(true);
         window.show();
 
-        let ctx = glw::GLContext{};
 
-        #[cfg(debug_assertions)]
-        ctx.set_debug();
 
         Ok( Application{
                 glfw,
@@ -159,8 +160,9 @@ impl Application{
     fn load_resources(&mut self) -> Result< () , Box<dyn Error + 'static > >
     {
         self.composite_quad_prog = {
-            let mut v_shader = Shader::new(gl::VERTEX_SHADER);
-            let mut f_shader = Shader::new(gl::FRAGMENT_SHADER);
+            use glw::shader::ShaderType;
+            let mut v_shader = Shader::new(ShaderType::Vertex);
+            let mut f_shader = Shader::new(ShaderType::Fragment);
             v_shader.load_from_file("Shaders/passthrough.vert").unwrap();
             f_shader.load_from_file("Shaders/composition.frag").unwrap();
 
@@ -172,8 +174,8 @@ impl Application{
 
         self.render_quad_prog = {
 
-            let mut v_shader = Shader::new(gl::VERTEX_SHADER);
-            let mut f_shader = Shader::new(gl::FRAGMENT_SHADER);
+            let mut v_shader = Shader::new(ShaderType::Vertex);
+            let mut f_shader = Shader::new(ShaderType::Fragment);
             v_shader.load_from_file("Shaders/shader.vert").unwrap();
             f_shader.load_from_file("Shaders/shader.frag").unwrap();
 

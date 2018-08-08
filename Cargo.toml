@@ -4,6 +4,6 @@ version = "0.1.0"
 authors = ["jonathansty <7695731+jonathansty@users.noreply.github.com>"]
 
 [dependencies]
-gl = "0.6.0"
-glfw = "0.23.0"
-rand = "0.5.4"
+glfw = "*"
+rand = "*"
+glw = "0.1.0"
