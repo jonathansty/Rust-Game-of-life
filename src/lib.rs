@@ -86,13 +86,11 @@ impl Application{
 
         self.glfw.set_swap_interval(glfw::SwapInterval::None);
         // Change this to influence the tick rate for the simulation
-        // let update_time = 1.0 / 1.0;
+        let update_time = 1.0 / 60.0;
         // let update_time = 1.0 / 400.0;
-        let update_time = 0.0;
 
         let mut timer = 0.0;
         let mut time = self.get_time();
-        let _x = 217;
         while !self.window.should_close() {
 
 
@@ -135,7 +133,8 @@ impl Application{
                 self.gl_ctx.bind_image(&self.fb_curr_state);
                 self.render_quad_prog.set_uniform("u_texture",Uniform::Sampler2D(self.fb_prev_state.get_texture())); // Bind our previous state as a texture
 
-                self.gl_ctx.dispatch_compute(self.field_size.x as u32,self.field_size.y as u32,1);
+                // self.draw_quad();
+                self.gl_ctx.dispatch_compute(self.field_size.x as u32 / 4, self.field_size.y as u32 / 4,1);
 
                 unsafe{
                     gl::MemoryBarrier(gl::ALL_BARRIER_BITS);
@@ -190,6 +189,8 @@ impl Application{
 
             //  Create the program
             glw::PipelineBuilder::new()
+                // .with_fragment_shader(f_shader)
+                // .with_vertex_shader(v_shader)
                 .with_compute_shader(c_shader)
                 .build()
         };
