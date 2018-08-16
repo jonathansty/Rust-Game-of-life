@@ -7,5 +7,5 @@ authors = ["jonathansty <7695731+jonathansty@users.noreply.github.com>"]
 glfw = "*"
 rand = "*"
 # glw = "0.1.2"
-glw = { path = "../glw" }
+glw = { path = "../rs-glw" }
 gl = "0.10.0"
