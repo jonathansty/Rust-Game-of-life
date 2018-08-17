@@ -13,8 +13,9 @@ use std::sync::mpsc::Receiver;
 
 use rand::prelude::*;
 
-pub struct Application
-{
+mod app;
+
+pub struct Application {
     glfw: glfw::Glfw,
     window: glfw::Window,
     events: Receiver<(f64, glfw::WindowEvent)>,
@@ -34,17 +35,35 @@ pub struct Application
 
     // Program state
     is_paused: bool,
-    gl_ctx : glw::GLContext
+    gl_ctx : glw::GLContext,
+    state : Box<dyn AppState>,
+    data : Box<GameData>,
+}
+
+pub enum Trans{
+    None,
+    Quit,
+    Transition(Box<dyn AppState>),
+}
+pub struct GameData{
+    sample_int : u8
+}
+pub trait AppState {
+    fn activate(&mut self, _ : &mut GameData){}
+
+    fn deactivate(&mut self, _ : &mut GameData){}
+
+    fn update(&mut self, _ : &mut GameData) -> Trans { Trans::None }
+
+    fn handle_event(&mut self,_ : &mut GameData, _ : glfw::WindowEvent) -> Trans { Trans::None }
 }
 
 impl Application{
 
-    pub fn new() -> Result<Application, Box<dyn std::error::Error>>
-    {
+    pub fn new(start_state: Box<dyn AppState> ) -> Result<Application, Box<dyn std::error::Error>> {
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
         glfw.window_hint(WindowHint::ContextVersion(4, 6));
         glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
-        // glfw.window_hint(WindowHint::Decorated(false));
 
 
         let (mut window, events) = glfw.with_primary_monitor(|instance, mon|{
@@ -62,8 +81,6 @@ impl Application{
         window.set_framebuffer_size_polling(true);
         window.show();
 
-
-
         Ok( Application{
                 glfw,
                 window,
@@ -75,7 +92,9 @@ impl Application{
                 render_quad_prog: GraphicsPipeline::default(),
                 fb_curr_state: RenderTarget::default(),
                 fb_prev_state: RenderTarget::default(),
-                quad: None
+                quad: None,
+                state: start_state,
+                data: Box::new(GameData{sample_int:15})
             })
     }
 
@@ -91,9 +110,11 @@ impl Application{
 
         let mut timer = 0.0;
         let mut time = self.get_time();
+
+        // Activate first state
+        self.state.activate(&mut self.data);
+
         while !self.window.should_close() {
-
-
             let prev_time = time;
             time = self.get_time();
 
@@ -114,8 +135,14 @@ impl Application{
                         let image_data = Application::generate_field(&self.field_size);
                         self.fb_prev_state.map_data(&image_data);
                     },
-                    _ => {}
+                    _ => {self.state.handle_event(&mut self.data, event);}
                 }
+            }
+
+            if let Trans::Transition(t) = self.state.update(&mut self.data) {
+                self.state.deactivate(&mut self.data);
+                self.state = t;
+                self.state.activate(&mut self.data);
             }
 
 
@@ -158,12 +185,12 @@ impl Application{
             self.window.swap_buffers();
 
         }
+        self.state.deactivate(&mut self.data);
 
         Ok( () )
     }
 
-    fn load_resources(&mut self) -> Result< () , Box<dyn Error + 'static > >
-    {
+    fn load_resources(&mut self) -> Result< () , Box<dyn Error + 'static > > {
         self.composite_quad_prog = {
             use glw::shader::ShaderType;
             let mut v_shader = Shader::new(ShaderType::Vertex);
@@ -263,7 +290,9 @@ impl Application{
 pub fn run() -> Result< (), Box<dyn std::error::Error + 'static> > {
 
     // Opens a new window and initializes glfw,opengl
-    let mut app = Application::new()?;
+    let mut app = Application::new(
+        Box::new(app::Loading::default())
+        )?;
     app.run()?;
 
     Ok( () )
