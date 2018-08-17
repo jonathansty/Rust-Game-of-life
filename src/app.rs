@@ -30,6 +30,12 @@ impl AppState for Loading{
         // Default do none
         Trans::None  
     }
+
+    fn render(&self, _ : &GameData, glx : &mut glw::GLContext) {
+        // Clear
+        glx.clear(None);
+    }
+
 }
 
 pub struct GameOfLife{
