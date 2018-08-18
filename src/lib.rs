@@ -3,7 +3,6 @@ extern crate glw;
 extern crate glfw;
 extern crate rand;
 
-
 use std::error::Error;
 use glfw::{Context, WindowHint};
 use glw::{Shader, GraphicsPipeline, Uniform, RenderTarget, Color, Vec2};
@@ -11,7 +10,7 @@ use glw::shader::ShaderType;
 
 use std::sync::mpsc::Receiver;
 
-use rand::prelude::*;
+use rand::*;
 
 pub struct Application
 {
