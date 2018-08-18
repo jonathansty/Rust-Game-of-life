@@ -1,16 +1,40 @@
 #version 440 
-layout(local_size_x = 4 ,local_size_y = 4) in;
+layout(local_size_x = 8 ,local_size_y = 8) in;
 
-layout(rgba8, binding = 0) uniform image2D img_output;
+// layout(rgba8, binding = 0) uniform image2D img_output;
 
-uniform sampler2D u_texture; // Previous state it's texture we can sample from
+
+struct CellData{
+    float lifetime;
+    bool alive;
+};
+
+uniform vec2 u_field_size;
+uniform float u_dt;
+
+layout(std430, binding = 0) writeonly buffer OutputData
+{
+    CellData next[];
+};
+
+layout(std430, binding = 1) readonly buffer InputData
+{
+    CellData input[];
+};
+
+// layout(binding = 2) uniform sampler2D u_texture; // Previous state it's texture we can sample from
+int GetArrayId(ivec2 pos)
+{
+    return pos.x + pos.y * int(u_field_size.x);
+}
 
 void main() {
 	vec4 pixel        = vec4(0.0,0.0,0.0,1.0);
 	ivec2 pixel_coord = ivec2(gl_GlobalInvocationID.xy);
 
-    float curr = texelFetch(u_texture,pixel_coord,0).r;
-    bool alive = curr > 0;
+    CellData curr = input[GetArrayId(pixel_coord)];
+
+    bool alive = curr.alive;
 
     int count = 0;
     for(int i = -1; i <= 1; ++i)
@@ -20,19 +44,31 @@ void main() {
             if(i == 0 && j == 0)
              continue;
 
-            float tex = texelFetch(u_texture,pixel_coord + ivec2(i,j),0).r;
-            if(tex > 0)
+            if(input[GetArrayId(pixel_coord + ivec2(i,j))].alive)
                 ++count;
         }
     }
 
-    float new_cell = curr;
-    if(count < 2)                                   new_cell = 0.0f;
-    else if(alive && (count == 2 || count == 3))    new_cell = 1.0f;
-    else if(alive && count > 3)                     new_cell = 0.0f;
-    else if(!alive && count == 3)                   new_cell = 1.0f;
+    CellData new_cell;
+    new_cell.alive = false;
+    new_cell.lifetime = curr.lifetime;
 
-    pixel =  vec4(new_cell,new_cell,new_cell,1.0f);
+    if(count < 2)                                   new_cell.alive = false;
+    else if(alive && (count == 2 || count == 3))    new_cell.alive = true;
+    else if(alive && count > 3)                     new_cell.alive = false;
+    else if(!alive && count == 3)                   new_cell.alive = true;
 
-	imageStore(img_output, pixel_coord, pixel);
+    new_cell.lifetime = curr.lifetime - u_dt;
+    if(new_cell.alive != curr.alive)
+    {
+        new_cell.lifetime = 1.0;
+    }
+
+    if(new_cell.lifetime < 0.0)
+    {
+        new_cell.alive = false;
+    }
+
+
+    next[GetArrayId(pixel_coord)] = new_cell;
 }
