@@ -184,7 +184,6 @@ impl Application {
                 self.compute_program.bind_storage_buffer(self.curr_sb.get_id(),0);
                 self.compute_program.bind_storage_buffer(self.prev_sb.get_id(),1);
 
-                // Dispatches the compute shaders with a set amount of work gropus
                 self.gl_ctx.dispatch_compute(
                     self.field_size.x as u32 / 8,
                     self.field_size.y as u32 / 8,
@@ -193,7 +192,6 @@ impl Application {
 
                 self.gl_ctx.memory_barrier(MemoryBarrier::ShaderStorage);
 
-                // Swaps the buffer id's
                 std::mem::swap(&mut self.curr_sb, &mut self.prev_sb);
             }
 
