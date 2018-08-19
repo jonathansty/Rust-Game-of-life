@@ -8,7 +8,7 @@ struct CellData{
     float creation;
 };
 
-layout(std430, binding = 0) readonly buffer OutputData
+layout(shared, binding = 0) readonly buffer OutputData
 {
     CellData next[];
 };

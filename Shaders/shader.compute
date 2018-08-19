@@ -14,12 +14,12 @@ uniform vec2 u_field_size;
 uniform float u_dt;
 uniform float u_time;
 
-layout(std430, binding = 0) writeonly buffer OutputData
+layout(shared, binding = 0) writeonly buffer OutputData
 {
     CellData next[];
 };
 
-layout(std430, binding = 1) readonly buffer InputData
+layout(shared, binding = 1) readonly buffer InputData
 {
     CellData input[];
 };
