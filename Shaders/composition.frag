@@ -3,8 +3,9 @@ layout ( location = 0) in vec2 uv;
 
 uniform vec2 u_field_size;
 struct CellData{
-    float lifetime;
     bool alive;
+    float lifetime;
+    float creation;
 };
 
 layout(std430, binding = 0) readonly buffer OutputData
@@ -21,9 +22,8 @@ void main() {
     CellData cell = next[pixel_coord];
     float life = cell.lifetime;
 
-    FragColor = mix(vec4(0,0,0,1), vec4(1.0,1.0,1.0,1), cell.alive?1.0:0.0);
-    // vec3 c = sin(vec3(4,1,1)*(life)) / 20.0;
+    vec3 r = vec3(mod(1*cell.creation, 2),(1+sin(cell.creation)/2),0);
     FragColor = vec4(
-        vec3(1,1,1)*life ,
+        r*vec3(1,1,1)*life ,
         1.0);
 }

@@ -22,8 +22,9 @@ const FIELD_HEIGHT: i32 = 256;
 #[allow(dead_code)]
 #[derive(Default, Copy, Clone)]
 struct Data{
-    lifetime : f32,
     alive : bool,
+    lifetime : f32,
+    t : f32,
 }
 
 pub struct Application {
@@ -143,10 +144,15 @@ impl Application {
 
         let mut timer = 0.0;
         let mut time = self.get_time();
-        let (width,height) = self.window.get_size();
-        self.gl_ctx.set_viewport(0,0,width,height);
 
         while !self.window.should_close() {
+            let (width,height) = self.window.get_size();
+            let middle = width / 2;
+
+            let width = std::cmp::min(width,height);
+
+            self.gl_ctx.set_viewport(middle - width / 2,0,width,width);
+
             let prev_time = time;
             time = self.get_time();
 
@@ -181,6 +187,7 @@ impl Application {
 
                 self.compute_program.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32,self.field_size.y as f32));
                 self.compute_program.set_uniform("u_dt", Uniform::Float(update_time as f32));
+                self.compute_program.set_uniform("u_time", Uniform::Float(self.get_time() as f32));
 
                 self.compute_program.bind_storage_buffer(self.curr_sb.get_id(),0);
                 self.compute_program.bind_storage_buffer(self.prev_sb.get_id(),1);
@@ -219,12 +226,14 @@ impl Application {
             if rng.gen::<f32>() > 0.1 {
                 image.push(Data{
                     alive: false,
-                    lifetime: 0.0
+                    lifetime: 0.0,
+                    t: 0.0,
                 })
             } else {
                 image.push(Data{
                     alive: true,
-                    lifetime: 1.0
+                    lifetime: 1.0,
+                    t: 0.0
                 })
             }
         }
