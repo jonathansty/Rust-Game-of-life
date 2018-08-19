@@ -116,8 +116,8 @@ impl Application {
         };
 
         let image_data = Application::generate_field(&field_size);
-        let curr_sb = StructuredBuffer::new(image_data.clone());
-        let prev_sb = StructuredBuffer::new(image_data);
+        let prev_sb = StructuredBuffer::from(image_data);
+        let curr_sb = StructuredBuffer::new((field_size.x * field_size.y) as usize);
 
         Ok(Application {
             glfw,
