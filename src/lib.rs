@@ -5,7 +5,7 @@ extern crate rand;
 
 use glfw::{Context, WindowHint};
 use glw::shader::ShaderType;
-use glw::{Color, GraphicsPipeline, RenderTarget, Shader, Uniform, Vec2};
+use glw::{Color, RenderTarget, Shader, Uniform, Vec2, MemoryBarrier};
 use glw::buffers::StructuredBuffer;
 use std::error::Error;
 
@@ -13,6 +13,13 @@ use std::sync::mpsc::Receiver;
 
 use rand::*;
 
+const WINDOW_WIDTH: u32 = 512;
+const WINDOW_HEIGHT: u32 = 512;
+const FIELD_WIDTH: i32 = 256;
+const FIELD_HEIGHT: i32 = 256;
+
+/// Structure used for our structured buffers
+#[allow(dead_code)]
 #[derive(Default, Copy, Clone)]
 struct Data{
     lifetime : f32,
@@ -20,6 +27,7 @@ struct Data{
 }
 
 pub struct Application {
+    /// GLFW specific things
     glfw: glfw::Glfw,
     window: glfw::Window,
     events: Receiver<(f64, glfw::WindowEvent)>,
@@ -27,15 +35,15 @@ pub struct Application {
     // App specific
     field_size: Vec2<i32>,
 
-    // Frame buffers
-    fb_prev_state: StructuredBuffer<Data>,
-    fb_curr_state: StructuredBuffer<Data>,
+    // 2 Structured buffers needed to store the data for our compute shader
+    curr_sb: StructuredBuffer<Data>,
+    prev_sb: StructuredBuffer<Data>,
 
-    render_quad_prog: glw::GraphicsPipeline,
-    composite_quad_prog: glw::GraphicsPipeline,
+    compute_program: glw::GraphicsPipeline,
+    render_program: glw::GraphicsPipeline,
 
     // Quad mesh
-    quad: Option<glw::Mesh>,
+    quad: glw::Mesh,
 
     // Program state
     is_paused: bool,
@@ -48,12 +56,11 @@ impl Application {
         glfw.window_hint(WindowHint::ContextVersion(4, 6));
         glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
 
-        let (mut window, events) = glfw.with_primary_monitor(|instance, mon| {
-            let vid_mode = mon.unwrap().get_video_mode().unwrap();
+        let (mut window, events) = glfw.with_primary_monitor(|instance, _mon| {
             instance
                 .create_window(
-                    1024,
-                    1024,
+                    WINDOW_WIDTH,
+                    WINDOW_HEIGHT,
                     "Conway's game of life",
                     glfw::WindowMode::Windowed,
                 ).unwrap()
@@ -69,24 +76,65 @@ impl Application {
         window.set_framebuffer_size_polling(true);
         window.show();
 
+        let vertices: [f32; 32] = [
+            -1.0, -1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0,
+            1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0,
+        ];
+
+        let indices: [i32; 6] = [0, 1, 2, 0, 2, 3];
+
+        let quad = glw::MeshBuilder::new()
+                .with_vertex_data(&vertices)
+                .with_index_data(&indices)
+                .build();
+
+        let render_program = {
+            use glw::shader::ShaderType;
+            let mut v_shader = Shader::new(ShaderType::Vertex);
+            let mut f_shader = Shader::new(ShaderType::Fragment);
+            v_shader.load_from_file("Shaders/passthrough.vert").unwrap();
+            f_shader.load_from_file("Shaders/composition.frag").unwrap();
+
+            glw::PipelineBuilder::new()
+                .with_vertex_shader(v_shader)
+                .with_fragment_shader(f_shader)
+                .build()
+        };
+
+        let compute_program = {
+            let mut c_shader = Shader::new(ShaderType::Compute);
+            c_shader.load_from_file("Shaders/shader.compute").unwrap();
+
+            glw::PipelineBuilder::new()
+                .with_compute_shader(c_shader)
+                .build()
+        };
+
+        let field_size = Vec2::<i32> {
+            x: FIELD_WIDTH,
+            y: FIELD_HEIGHT,
+        };
+
+        let image_data = Application::generate_field(&field_size);
+        let curr_sb = StructuredBuffer::new(image_data.clone());
+        let prev_sb = StructuredBuffer::new(image_data);
+
         Ok(Application {
             glfw,
             window,
             events,
-            field_size: Vec2::<i32> { x: 512, y: 512 },
+            field_size: field_size,
             gl_ctx: ctx,
             is_paused:false,
-            composite_quad_prog: GraphicsPipeline::default(),
-            render_quad_prog: GraphicsPipeline::default(),
-            fb_curr_state: StructuredBuffer::default(),
-            fb_prev_state: StructuredBuffer::default(),
-            quad: None,
+            compute_program,
+            render_program,
+            curr_sb,
+            prev_sb,
+            quad
         })
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        // Load necessary resources (Framebuffer, textures, fullscreen quad and shader programs)
-        self.load_resources()?;
 
         self.glfw.set_swap_interval(glfw::SwapInterval::None);
         // Change this to influence the tick rate for the simulation
@@ -114,7 +162,7 @@ impl Application {
                     }
                     glfw::WindowEvent::Key(glfw::Key::R, _, glfw::Action::Press, _) => {
                         let image_data = Application::generate_field(&self.field_size);
-                        self.fb_prev_state.map_data(&image_data);
+                        self.prev_sb.map_data(&image_data);
                     }
                     _ => {}
                 }
@@ -128,14 +176,13 @@ impl Application {
             if !self.is_paused && timer <= 0.0 {
                 timer = update_time;
 
-                self.gl_ctx.bind_pipeline(&self.render_quad_prog);
+                self.gl_ctx.bind_pipeline(&self.compute_program);
 
-                // self.draw_quad();
-                self.render_quad_prog.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32,self.field_size.y as f32));
-                self.render_quad_prog.set_uniform("u_dt", Uniform::Float(update_time as f32));
+                self.compute_program.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32,self.field_size.y as f32));
+                self.compute_program.set_uniform("u_dt", Uniform::Float(update_time as f32));
 
-                self.render_quad_prog.bind_storage_buffer(self.fb_curr_state.get_id(),0);
-                self.render_quad_prog.bind_storage_buffer(self.fb_prev_state.get_id(),1);
+                self.compute_program.bind_storage_buffer(self.curr_sb.get_id(),0);
+                self.compute_program.bind_storage_buffer(self.prev_sb.get_id(),1);
 
                 // Dispatches the compute shaders with a set amount of work gropus
                 self.gl_ctx.dispatch_compute(
@@ -144,92 +191,24 @@ impl Application {
                     1,
                 );
 
-                unsafe {
-                    gl::MemoryBarrier(gl::ALL_BARRIER_BITS);
-                }
+                self.gl_ctx.memory_barrier(MemoryBarrier::ShaderStorage);
 
                 // Swaps the buffer id's
-                std::mem::swap(&mut self.fb_curr_state, &mut self.fb_prev_state);
+                std::mem::swap(&mut self.curr_sb, &mut self.prev_sb);
             }
 
-            // Copy to screen FB
             self.gl_ctx.set_viewport(0, 0, width, height);
             self.gl_ctx.clear(None);
             {
-                self.gl_ctx.bind_pipeline(&self.composite_quad_prog);
-                self.composite_quad_prog.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32, self.field_size.y as f32) );
-                self.composite_quad_prog.bind_storage_buffer(self.fb_prev_state.get_id(), 0);
+                self.gl_ctx.bind_pipeline(&self.render_program);
+                self.render_program.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32, self.field_size.y as f32) );
+                self.render_program.bind_storage_buffer(self.prev_sb.get_id(), 0);
 
-                self.draw_quad();
+                self.quad.draw();
             }
 
             self.window.swap_buffers();
         }
-
-        Ok(())
-    }
-
-    /// Loads up the required shaders.
-    fn load_resources(&mut self) -> Result<(), Box<dyn Error + 'static>> {
-        self.composite_quad_prog = {
-            use glw::shader::ShaderType;
-            let mut v_shader = Shader::new(ShaderType::Vertex);
-            let mut f_shader = Shader::new(ShaderType::Fragment);
-            v_shader.load_from_file("Shaders/passthrough.vert").unwrap();
-            f_shader.load_from_file("Shaders/composition.frag").unwrap();
-
-            glw::PipelineBuilder::new()
-                .with_vertex_shader(v_shader)
-                .with_fragment_shader(f_shader)
-                .build()
-        };
-
-        self.render_quad_prog = {
-            let mut v_shader = Shader::new(ShaderType::Vertex);
-            let mut f_shader = Shader::new(ShaderType::Fragment);
-            let mut c_shader = Shader::new(ShaderType::Compute);
-
-            v_shader.load_from_file("Shaders/shader.vert").unwrap();
-            f_shader.load_from_file("Shaders/shader.frag").unwrap();
-            c_shader.load_from_file("Shaders/shader.compute").unwrap();
-
-            //  Create the program
-            glw::PipelineBuilder::new()
-                // .with_fragment_shader(f_shader)
-                // .with_vertex_shader(v_shader)
-                .with_compute_shader(c_shader)
-                .build()
-        };
-
-
-        // Create the vertex array object
-        let vertices: [f32; 32] = [
-            -1.0, -1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0,
-            1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, -1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0,
-        ];
-
-        let indices: [i32; 6] = [0, 1, 2, 0, 2, 3];
-
-        self.quad = Some(
-            glw::MeshBuilder::new()
-                .with_vertex_data(&vertices)
-                .with_index_data(&indices)
-                .build(),
-        );
-
-        // Generate 2 textures to keep the previous state and our render target
-
-        let (width, height) = self.window.get_size();
-        self.field_size = Vec2::<i32> {
-            x: 256,
-            y: 256,
-        };
-
-        // self.fb_curr_state = glw::RenderTarget::new(self.field_size.clone())?;
-        // self.fb_prev_state = glw::RenderTarget::new(self.field_size.clone())?;
-        let image_data = Application::generate_field(&self.field_size);
-        self.fb_curr_state = StructuredBuffer::new(image_data.clone());
-        self.fb_prev_state = StructuredBuffer::new(image_data);
 
         Ok(())
     }
@@ -253,12 +232,6 @@ impl Application {
         }
 
         image
-    }
-
-    fn draw_quad(&self) {
-        if let Some(ref q) = self.quad {
-            q.draw();
-        }
     }
 
     fn get_time(&self) -> f64 {

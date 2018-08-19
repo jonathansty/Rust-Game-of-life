@@ -8,13 +8,12 @@
             "name": "launch (Debug)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/target/debug/game_of_life.exe",
+            "program": "${workspaceFolder}/../../target/debug/game_of_life.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
-            "preLaunchTask": "Rust: cargo build"
         },
         {
             "name": "launch (Release)",
@@ -29,7 +28,19 @@
             "logging": {
                 "programOutput": true
             },
-            "preLaunchTask": "Build Release"
         },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Cargo launch",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--lib"
+                ]
+            },
+            "program": "${cargo:program}",
+            "args": []
+        }
     ]
 }
