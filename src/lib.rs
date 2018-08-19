@@ -143,6 +143,9 @@ impl Application {
 
         let mut timer = 0.0;
         let mut time = self.get_time();
+        let (width,height) = self.window.get_size();
+        self.gl_ctx.set_viewport(0,0,width,height);
+
         while !self.window.should_close() {
             let prev_time = time;
             time = self.get_time();
@@ -167,8 +170,6 @@ impl Application {
                     _ => {}
                 }
             }
-
-            let (width, height) = self.window.get_size();
 
             self.gl_ctx.bind_rt(&RenderTarget::default());
             self.gl_ctx.clear(Some(Color::new(0, 0, 0, 0)));
@@ -195,8 +196,7 @@ impl Application {
                 std::mem::swap(&mut self.curr_sb, &mut self.prev_sb);
             }
 
-            self.gl_ctx.set_viewport(0, 0, width, height);
-            self.gl_ctx.clear(None);
+
             {
                 self.gl_ctx.bind_pipeline(&self.render_program);
                 self.render_program.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32, self.field_size.y as f32) );
