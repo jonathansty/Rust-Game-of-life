@@ -54,7 +54,7 @@ pub struct Application {
 impl Application {
     pub fn new() -> Result<Application, Box<dyn std::error::Error>> {
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
-        glfw.window_hint(WindowHint::ContextVersion(4, 6));
+        glfw.window_hint(WindowHint::ContextVersion(4, 5));
         glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
 
         let (mut window, events) = glfw.with_primary_monitor(|instance, _mon| {

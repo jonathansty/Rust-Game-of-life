@@ -18,7 +18,7 @@ layout(shared, binding = 0) writeonly buffer OutputData
 
 layout(shared, binding = 1) readonly buffer InputData
 {
-    CellData input[];
+    CellData input_data[];
 };
 
 // layout(binding = 2) uniform sampler2D u_texture; // Previous state it's texture we can sample from
@@ -31,7 +31,7 @@ void main() {
 	vec4 pixel        = vec4(0.0,0.0,0.0,1.0);
 	ivec2 pixel_coord = ivec2(gl_GlobalInvocationID.xy);
 
-    CellData curr = input[GetArrayId(pixel_coord)];
+    CellData curr = input_data[GetArrayId(pixel_coord)];
 
     bool alive = curr.alive;
 
@@ -43,7 +43,7 @@ void main() {
             if(i == 0 && j == 0)
              continue;
 
-            if(input[GetArrayId(pixel_coord + ivec2(i,j))].alive)
+            if(input_data[GetArrayId(pixel_coord + ivec2(i,j))].alive)
                 ++count;
         }
     }
