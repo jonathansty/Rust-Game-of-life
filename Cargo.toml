@@ -2,9 +2,10 @@
 name = "game_of_life"
 version = "0.1.0"
 authors = ["jonathansty <7695731+jonathansty@users.noreply.github.com>"]
+edition = '2018'
 
 [dependencies]
-glfw = "0.23.0"
 rand = "0.5"
-glw = { git="https://github.com/jonathansty/rs-glw"}
-gl = "0.10.0"
+
+[dependencies.glw]
+path = "rs-glw"

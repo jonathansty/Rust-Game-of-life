@@ -1,7 +1,4 @@
-extern crate gl;
-extern crate glfw;
-extern crate glw;
-extern crate rand;
+use glw::glfw;
 
 use glfw::{Context, WindowHint};
 use glw::shader::ShaderType;
@@ -90,7 +87,6 @@ impl Application {
                 .build();
 
         let render_program = {
-            use glw::shader::ShaderType;
             let mut v_shader = Shader::new(ShaderType::Vertex);
             let mut f_shader = Shader::new(ShaderType::Fragment);
             v_shader.load_from_file("Shaders/passthrough.vert").unwrap();
@@ -137,10 +133,10 @@ impl Application {
 
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
 
-        self.glfw.set_swap_interval(glfw::SwapInterval::None);
-        // Change this to influence the tick rate for the simulation
+        // Setup the swap interval
+        self.glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
+
         let update_time = 1.0 / 20.0;
-        // let update_time = 1.0 / 400.0;
 
         let mut timer = 0.0;
         let mut time = self.get_time();
@@ -180,6 +176,7 @@ impl Application {
             self.gl_ctx.bind_rt(&RenderTarget::default());
             self.gl_ctx.clear(Some(Color::new(0, 0, 0, 0)));
 
+            // Update the simulation
             if !self.is_paused && timer <= 0.0 {
                 timer = update_time;
 
@@ -189,10 +186,10 @@ impl Application {
                 self.compute_program.set_uniform("u_dt", Uniform::Float(update_time as f32));
                 self.compute_program.set_uniform("u_time", Uniform::Float(self.get_time() as f32));
 
-                self.compute_program.bind_storage_buffer(self.curr_sb.get_id(),0);
-                self.compute_program.bind_storage_buffer(self.prev_sb.get_id(),1);
+                self.compute_program.bind_buffer(&self.curr_sb,0);
+                self.compute_program.bind_buffer(&self.prev_sb,1);
 
-                self.gl_ctx.dispatch_compute(
+                self.gl_ctx.dispatch(
                     self.field_size.x as u32 / 8,
                     self.field_size.y as u32 / 8,
                     1,
@@ -203,11 +200,11 @@ impl Application {
                 std::mem::swap(&mut self.curr_sb, &mut self.prev_sb);
             }
 
-
+            // Display the compute simulation on screen
             {
                 self.gl_ctx.bind_pipeline(&self.render_program);
                 self.render_program.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32, self.field_size.y as f32) );
-                self.render_program.bind_storage_buffer(self.prev_sb.get_id(), 0);
+                self.render_program.bind_buffer(&self.prev_sb, 0);
 
                 self.quad.draw();
             }
