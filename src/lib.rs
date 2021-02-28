@@ -4,6 +4,7 @@ use glfw::{Context, WindowHint};
 use glw::shader::ShaderType;
 use glw::{Color, RenderTarget, Shader, Uniform, Vec2, MemoryBarrier};
 use glw::buffers::StructuredBuffer;
+use glw::program::CommandList;
 use std::error::Error;
 
 use std::sync::mpsc::Receiver;
@@ -147,7 +148,8 @@ impl Application {
 
             let width = std::cmp::min(width,height);
 
-            self.gl_ctx.set_viewport(middle - width / 2,0,width,width);
+            let mut cmd_list = self.gl_ctx.create_command_list();
+            cmd_list.set_viewport(middle - width / 2,0,width,width);
 
             let prev_time = time;
             time = self.get_time();
@@ -173,40 +175,43 @@ impl Application {
                 }
             }
 
-            self.gl_ctx.bind_rt(&RenderTarget::default());
-            self.gl_ctx.clear(Some(Color::new(0, 0, 0, 0)));
+            cmd_list.bind_rt(&RenderTarget::default());
+            cmd_list.clear(Some(Color::new(0, 0, 0, 0)));
 
             // Update the simulation
             if !self.is_paused && timer <= 0.0 {
                 timer = update_time;
 
-                self.gl_ctx.bind_pipeline(&self.compute_program);
+                cmd_list.bind_pipeline(&self.compute_program);
 
-                self.compute_program.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32,self.field_size.y as f32));
-                self.compute_program.set_uniform("u_dt", Uniform::Float(update_time as f32));
-                self.compute_program.set_uniform("u_time", Uniform::Float(self.get_time() as f32));
+                cmd_list.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32,self.field_size.y as f32));
+                cmd_list.set_uniform("u_dt", Uniform::Float(update_time as f32));
+                cmd_list.set_uniform("u_time", Uniform::Float(self.get_time() as f32));
 
-                self.compute_program.bind_buffer(&self.curr_sb,0);
-                self.compute_program.bind_buffer(&self.prev_sb,1);
+                cmd_list.bind_buffer(&self.curr_sb,0);
+                cmd_list.bind_buffer(&self.prev_sb,1);
 
-                self.gl_ctx.dispatch(
+                cmd_list.dispatch(
                     self.field_size.x as u32 / 8,
                     self.field_size.y as u32 / 8,
                     1,
                 );
 
-                self.gl_ctx.memory_barrier(MemoryBarrier::ShaderStorage);
+                cmd_list.memory_barrier(MemoryBarrier::ShaderStorage);
 
                 std::mem::swap(&mut self.curr_sb, &mut self.prev_sb);
             }
 
             // Display the compute simulation on screen
             {
-                self.gl_ctx.bind_pipeline(&self.render_program);
-                self.render_program.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32, self.field_size.y as f32) );
-                self.render_program.bind_buffer(&self.prev_sb, 0);
+                cmd_list.bind_pipeline(&self.render_program);
+                cmd_list.set_uniform("u_field_size", Uniform::Vec2(self.field_size.x as f32, self.field_size.y as f32) );
+                cmd_list.bind_buffer(&self.prev_sb, 0);
 
+                // #TODO: Do mesh drawing using cmd list
                 self.quad.draw();
+
+                self.gl_ctx.execute_command_list(&cmd_list);
             }
 
             self.window.swap_buffers();
