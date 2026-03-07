@@ -28,8 +28,8 @@ struct Data{
 pub struct Application {
     /// GLFW specific things
     glfw: glfw::Glfw,
-    window: glfw::Window,
-    events: Receiver<(f64, glfw::WindowEvent)>,
+    window: glfw::PWindow,
+    events: glfw::GlfwReceiver<(f64, glfw::WindowEvent)>,
 
     // App specific
     field_size: Vec2<i32>,
@@ -51,7 +51,7 @@ pub struct Application {
 
 impl Application {
     pub fn new() -> Result<Application, Box<dyn std::error::Error>> {
-        let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS)?;
+        let mut glfw = glfw::init(glfw::fail_on_errors)?;
         glfw.window_hint(WindowHint::ContextVersion(4, 5));
         glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
 
@@ -64,6 +64,7 @@ impl Application {
                     glfw::WindowMode::Windowed,
                 ).unwrap()
         });
+
 
         // Setting up the opengl context
         let mut ctx = glw::GLContext::new(&mut window);
