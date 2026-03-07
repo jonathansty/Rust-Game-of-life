@@ -1,5 +1,6 @@
 # Conway's game of life in Rust 
-![Alt text](doc/project-animation.png)
+![](doc/project-animation.gif)
+
 A sample implementation of a real-time game of life evolution using gl and glfw in rust.
 
 # Requirements
