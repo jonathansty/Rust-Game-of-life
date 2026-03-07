@@ -1,16 +1,9 @@
 # Conway's game of life in Rust 
 ![](doc/project-animation.gif)
 
-A sample implementation of a real-time game of life evolution using gl and glfw in rust.
+This project is a quick & dirty implementation of a conways game of life. The simulation is done on the gpu using shaders rather than on the cpu. It served mostly as a way to teach myself rust and the beginnings of graphics programming in rust.  
 
-# Requirements
-- A rust toolchain
-
-# Building and running
-As this project is part of the GLW development it's included as an example in there. To use it clone the GLW or update the Cargo.toml to point at the correct dependency.
-
-If you've done that you can use following commands to run it:
-```
-cargo build
-cargo run
-```
+# Building & running
+There are no special requirements and the project relies on `cargo` to build & run
+- `cargo build` to build
+- `cargo run` to run 
